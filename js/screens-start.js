@@ -27,14 +27,14 @@ function routeFromLaunch() {
 
 SCREENS.welcome = () => screen({
   cls: 'welcome',
-  top: `<header class="topbar"><div class="tb-left"></div><div class="tb-title"></div><div class="tb-right"></div></header>`,
+  top: `<header class="topbar"><div class="tb-left"></div><div class="tb-title"></div><div class="tb-right"><div class="seg mini lang-mini" role="group" aria-label="Language">
+    <button class="${lang() === 'da' ? 'on' : ''}" data-act="setLang" data-v="da">🇩🇰 DA</button><button class="${lang() === 'en' ? 'on' : ''}" data-act="setLang" data-v="en">🇬🇧 EN</button></div></div></header>`,
   body: `<div class="hero-art">
       <div class="hero-card c1"><span>🍗</span><b>Plan</b><small>7 days · on macro</small></div>
       <div class="hero-card c2"><span>🛒</span><b>Shop</b><small>487 kr · 2 stores</small></div>
       <div class="hero-card c3"><span>🥡</span><b>Prep</b><small>14 meals · ~1h 20m</small></div>
     </div>
     <div class="pad">
-      ${langSwitch()}
       <h1 class="display">Eat for your goals. Spend less. Think less.</h1>
       <p class="lead">Tell us your macros, budget and stores. We'll plan your meals, your shopping list and your Sunday meal prep.</p>
     </div>`,

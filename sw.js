@@ -2,7 +2,7 @@
 // instantly (and in a store basement). When a new version is published (new VERSION,
 // stamped by scripts/publish-prototype.sh), it installs in the background and the page
 // reloads itself onto it.
-const VERSION = 'fme-proto-5b5c3d1';
+const VERSION = 'fme-proto-43b0f8b';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/util.js', 'js/data.js', 'js/offers.js', 'js/mix.js', 'js/i18n.js', 'js/i18n-da.js', 'js/engine.js', 'js/state.js', 'js/ui.js',

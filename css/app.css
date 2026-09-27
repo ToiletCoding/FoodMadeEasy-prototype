@@ -617,4 +617,8 @@ a.btn { text-decoration: none; }
 .lang-switch { margin-bottom: 14px; }
 .lang-switch button { font-size: 15px; }
 .dev-row .lang-switch { margin: 0; width: 100%; }
-.welcome .hero-art { margin-top: 8px; }
+
+.welcome .body { justify-content: flex-start; }
+.welcome .hero-art { margin: 8px 20px 20px; flex: none; }
+.lang-mini { width: auto; }
+.lang-mini button { padding: 0 10px; white-space: nowrap; }

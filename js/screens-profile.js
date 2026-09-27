@@ -21,7 +21,8 @@ SCREENS.profile = () => {
       ${(() => { const r = Object.values(pr.ratings || {}); const up = r.filter((v) => v === 1).length, down = r.filter((v) => v === -1).length;
         return `<button class="card profile-card" data-act="openRatings"><span class="grow"><small>Your meals</small><span>${up || down ? `${up} liked · ${down} disliked` : 'Rate meals with 👍 or 👎 to steer your plans'}</span></span>${icon('chev-right')}</button>`; })()}
       <button class="card profile-card" data-act="openFeedback"><span class="grow"><small>Feedback</small><span>Tell us what's confusing, broken or missing</span></span>${icon('chev-right')}</button>
-      <p class="fine center">Changes apply to your next plan. We'll ask before changing this week.</p></div>`,
+      <p class="fine center">Changes apply to your next plan. We'll ask before changing this week.</p>
+      <p class="fine center version-line">\u2063${esc(APP_VERSION)}</p></div>`,
   });
 };
 ACT.openSettings = () => push('settings');

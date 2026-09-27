@@ -1,7 +1,8 @@
 // Offline support for the installed prototype. Serves from cache first so it opens
-// instantly (and in a store basement), then refreshes the cache in the background:
-// a new version shows up on the next launch. Bump VERSION when files are added.
-const VERSION = 'fme-proto-2a96b3b';
+// instantly (and in a store basement). When a new version is published (new VERSION,
+// stamped by scripts/publish-prototype.sh), it installs in the background and the page
+// reloads itself onto it.
+const VERSION = 'fme-proto-5b5c3d1';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/util.js', 'js/data.js', 'js/offers.js', 'js/mix.js', 'js/i18n.js', 'js/i18n-da.js', 'js/engine.js', 'js/state.js', 'js/ui.js',
@@ -10,7 +11,8 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser's HTTP cache, so a new version never stores old files.
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -21,7 +23,7 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(caches.open(VERSION).then(async (cache) => {
     const cached = await cache.match(e.request, { ignoreSearch: true });
-    const fresh = fetch(e.request).then((res) => {
+    const fresh = fetch(e.request, { cache: 'no-cache' }).then((res) => {
       if (res.ok) cache.put(e.request, res.clone());
       return res;
     }).catch(() => cached);

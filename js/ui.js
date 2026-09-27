@@ -239,6 +239,15 @@ function progress(frac, o = {}) {
   return `<div class="progress ${o.cls || ''}"><div style="width:${Math.max(0, Math.min(1, frac)) * 100}%"></div></div>`;
 }
 
+// Dansk / English switch (Profile, Welcome, prototype tools).
+function langSwitch() {
+  const l = lang();
+  return `<div class="seg two lang-switch" role="group" aria-label="Language">
+    <button class="${l === 'da' ? 'on' : ''}" data-act="setLang" data-v="da">🇩🇰 Dansk</button>
+    <button class="${l === 'en' ? 'on' : ''}" data-act="setLang" data-v="en">🇬🇧 English</button></div>`;
+}
+ACT.setLang = (d) => { S.lang = d.v; render(); };
+
 function empty({ art, title, text, action }) {
   return `<div class="empty"><div class="empty-art">${art}</div><h2>${title}</h2><p>${text}</p>${action || ''}</div>`;
 }

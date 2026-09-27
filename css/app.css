@@ -613,3 +613,8 @@ a { color: var(--brand); }
 .fb-ctx summary { cursor: pointer; padding: 4px 0; }
 .fb-ctx pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--surface-2); border-radius: 10px; padding: 10px; margin: 6px 0 0; font-family: ui-monospace, Menlo, monospace; }
 a.btn { text-decoration: none; }
+
+.lang-switch { margin-bottom: 14px; }
+.lang-switch button { font-size: 15px; }
+.dev-row .lang-switch { margin: 0; width: 100%; }
+.welcome .hero-art { margin-top: 8px; }

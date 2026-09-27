@@ -4,7 +4,7 @@
 function devControls() {
   const d = S.dev;
   const tgl = (key, label) => `<label class="dev-row"><span>${label}</span><input type="checkbox" class="switch" data-devtoggle="${key}" ${d[key] ? 'checked' : ''}></label>`;
-  return `<div class="dev-row"><span>Today is <b>${fmtDay(today())}</b>${d.dayOffset ? ` <small>(${signed(d.dayOffset)} d)</small>` : ''}</span>
+  return `<div class="dev-row">${langSwitch()}</div><div class="dev-row"><span>Today is <b>${fmtDay(today())}</b>${d.dayOffset ? ` <small>(${signed(d.dayOffset)} d)</small>` : ''}</span>
       <span class="dev-btns"><button data-act="devDay" data-v="-1">−1 day</button><button data-act="devDay" data-v="1">+1 day</button>${d.dayOffset ? '<button data-act="devDay" data-v="0">Reset</button>' : ''}</span></div>
     ${tgl('offline', 'Simulate offline')}
     ${tgl('failNext', 'Fail next plan build')}

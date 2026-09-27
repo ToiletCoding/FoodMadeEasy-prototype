@@ -1,7 +1,7 @@
 // Offline support for the installed prototype. Serves from cache first so it opens
 // instantly (and in a store basement), then refreshes the cache in the background:
 // a new version shows up on the next launch. Bump VERSION when files are added.
-const VERSION = 'fme-proto-7dd3d21';
+const VERSION = 'fme-proto-2a96b3b';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/util.js', 'js/data.js', 'js/offers.js', 'js/mix.js', 'js/i18n.js', 'js/i18n-da.js', 'js/engine.js', 'js/state.js', 'js/ui.js',

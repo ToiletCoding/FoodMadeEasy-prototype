@@ -13,6 +13,7 @@ SCREENS.profile = () => {
     tab: 'profile',
     top: topbar({ title: 'Profile', large: true, sub: esc(S.user.email), right: `<button class="icon-btn" data-act="openSettings" aria-label="Settings">${icon('gear')}</button>` }),
     body: `<div class="pad">
+      ${langSwitch()}
       ${card('targets', 'Targets', [rows[0][2], rows[1][2]])}
       ${card('food', 'Food', [rows[2][2]])}
       ${card('planning', 'Planning', [rows[3][2]])}

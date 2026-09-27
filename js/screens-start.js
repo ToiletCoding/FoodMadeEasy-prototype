@@ -307,7 +307,7 @@ SHEETS.avoid = ({ root }) => {
       <input class="text-input search" type="search" data-bind="form.avoidQuery" value="${esc(q)}" placeholder="Search foods" data-enter="addAvoidQuery" data-root="${root}" data-autofocus>
       ${d.avoid.length ? `<div class="chips">${d.avoid.map((a) => chip(`${esc(a)} ×`, true, 'removeAvoid', { root, v: a })).join('')}</div>` : ''}
       ${q ? `<div class="list">${matches.map((m) => `<button class="list-row" data-act="addAvoid" data-root="${root}" data-v="${esc(m)}">${esc(m)}</button>`).join('')}
-          ${!matches.some((m) => shown(m).toLowerCase() === q.toLowerCase()) ? `<button class="list-row accent" data-act="addAvoid" data-root="${root}" data-v="${esc(q)}">${matches.length ? '' : '<span>No match.</span>&nbsp;'}<span>Add</span>&nbsp;‘<span>\u2063${esc(q)}</span>’&nbsp;<span>anyway</span></button>` : ''}</div>`
+          ${!matches.some((m) => shown(m).toLowerCase() === q.toLowerCase()) ? `<button class="list-row accent" data-act="addAvoid" data-root="${root}" data-v="${esc(q)}">${matches.length ? '' : '<span>No match.</span> '}<span>Add</span> <span>\u2063‘${esc(q)}’</span> <span>anyway</span></button>` : ''}</div>`
         : `<div class="section-label">Common picks</div><div class="chips">${COMMON_AVOID.filter((c) => !d.avoid.includes(c)).map((c) => chip(c, false, 'addAvoid', { root, v: c })).join('')}</div>`}
     </div>
     <div class="sheet-foot">${btn('Done', 'closeSheet')}</div>`;

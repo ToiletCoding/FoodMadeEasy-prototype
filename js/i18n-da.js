@@ -311,6 +311,8 @@ Object.assign(I18N.templates, {
   'adds {n} meals.': 'giver {n} retter mere.', 'adds {n} meal.': 'giver {n} ret mere.', 'Allow More Foods': 'Tillad flere madvarer', 'Lower variety': 'Mindre variation', "We couldn't build your week": 'Vi kunne ikke bygge din uge', 'Something went wrong on our side. Your settings are saved.': 'Noget gik galt hos os. Dine indstillinger er gemt.',
   "We're looking into it. Try again in a few minutes.": 'Vi kigger på det. Prøv igen om et par minutter.', 'Try Again': 'Prøv igen', 'Edit Preferences': 'Ret præferencer', 'No connection': 'Ingen forbindelse', 'FoodMadeEasy needs the internet to get started.': 'FoodMadeEasy skal bruge internettet for at komme i gang.',
   '{s} {n} {s}': '{s} {n}. {s}', '{s} {n} {s} – {s} {n} {s}': '{s} {n}. {s} – {s} {n}. {s}',
+  '🇩🇰 DA': '🇩🇰 DA', '🇬🇧 EN': '🇬🇧 EN', '🇩🇰 Dansk': '🇩🇰 Dansk', '🇬🇧 English': '🇬🇧 English',
+  'This list covers both prep sessions. Check the use-by dates on fresh meat for {s}.': 'Listen dækker begge prep-sessioner. Tjek sidste anvendelsesdato på frisk kød til {s}.',
   'Contains:': 'Indeholder:', 'No match.': 'Intet match.', Add: 'Tilføj', anyway: 'alligevel', '· {n}P': '· {n}P', '{n} serving ·': '{n} portion ·', '{n} servings ·': '{n} portioner ·', '· {n} under budget': '· {n} under budget', '· {n} over budget': '· {n} over budget',
   '{n} kg': '{n} kg', '{n} L': '{n} L', '±{n} kr': '±{n} kr', '{n} kr ·': '{n} kr ·',
   // Toasts & misc

@@ -1,7 +1,7 @@
 // App state, persistence and derived "where is the user in the week" logic.
 
 const STORE_KEY = 'fme-prototype-v1';
-const APP_VERSION = 'Version 43b0f8b · 2026-09-27';
+const APP_VERSION = 'Version b62e374 · 2026-09-27';
 // Where testers' "Email feedback" goes. Empty = share/copy only (the app is public, so no address is baked in by default).
 const FEEDBACK_EMAIL = '';
 

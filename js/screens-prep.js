@@ -178,7 +178,7 @@ function startTimerTicker() {
     const finished = p.prep.timers.filter((t) => t.endsAt <= Date.now());
     if (finished.length) {
       p.prep.timers = p.prep.timers.filter((t) => t.endsAt > Date.now());
-      finished.forEach((t) => { haptic(200); toast(`⏰ ${t.label} timer is done`, { kind: 'good', ms: 6000 }); });
+      finished.forEach((t) => { haptic(200); toast(`⏰ ${t.label} timer is done`, { kind: 'good', ms: 6000 }); notify(`${t.label} timer is done`, 'Meal prep: time for the next step.'); });
       if (U.route.name === 'prep') render();
       save();
     }

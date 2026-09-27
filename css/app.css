@@ -563,3 +563,20 @@ a { color: var(--brand); }
 .dev-links { display: flex; flex-wrap: wrap; gap: 6px; }
 .dev-row .switch { transform: scale(0.8); }
 .dev-inline .dev-row { font-size: 14px; }
+
+/* ---------- Mix & match ---------- */
+.mix-builder { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.mix-row { display: flex; flex-direction: column; gap: 6px; }
+.mix-label { font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; }
+.mix-chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -20px; padding: 0 20px 2px; scrollbar-width: none; }
+.mix-chips::-webkit-scrollbar { display: none; }
+.mix-chips .chip { flex: none; min-height: 36px; font-size: 14px; }
+.chip.dim { opacity: 0.45; border-style: dashed; }
+.mix-preview { display: flex; gap: 12px; align-items: center; padding: 12px; }
+.mix-preview b { display: block; font-size: 16px; }
+.mixer-card { padding: 14px 14px 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+.mixer-card .mix-chips { margin: 0 -14px; padding: 0 14px 2px; }
+.mixer-head { display: flex; gap: 12px; align-items: center; }
+.mixer-head small { display: block; font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; }
+.mixer-head b { display: block; font-size: 16px; line-height: 1.25; }
+.item-row { transition: transform 0.15s, opacity 0.3s; }

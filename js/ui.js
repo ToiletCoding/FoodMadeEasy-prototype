@@ -38,6 +38,16 @@ function toast(msg, opts = {}) {
   toast.timer = setTimeout(() => { U.toasts = U.toasts.filter((x) => x.id !== t.id); renderToasts(); }, opts.ms || (opts.undo ? 6000 : 2800));
 }
 
+// Real system notification when allowed (installed app / secure context); silent otherwise.
+function notify(title, body) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted' || S.settings.permission !== 'granted') return;
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+      navigator.serviceWorker.getRegistration().then((reg) => (reg ? reg.showNotification(title, { body, icon: 'icons/icon-192.png', tag: title }) : new Notification(title, { body }))).catch(() => {});
+    } else new Notification(title, { body });
+  } catch (e) { /* notifications unavailable */ }
+}
+
 function haptic(ms = 8) {
   try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate(ms); } catch (e) { /* no-op */ }
 }

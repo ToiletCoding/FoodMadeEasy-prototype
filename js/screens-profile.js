@@ -211,8 +211,16 @@ SHEETS.primer = () => `<div class="sheet-body center-col"><div class="big-emoji"
   <div class="card list-card primer-ex"><div class="ing-row"><span><b>Sunday 10:00</b></span><span>Next week's offers are in.</span></div>
   <div class="ing-row"><span><b>20:00</b></span><span>Move Thursday's meals to the fridge.</span></div></div></div>
   <div class="sheet-foot">${btn('Turn On Reminders', 'primerYes')}${btn('Not now', 'primerNo', { kind: 'text' })}</div>`;
-ACT.primerYes = () => {
+ACT.primerYes = async () => {
   U.sheet = null;
+  if ('Notification' in window && window.isSecureContext) {
+    let res = 'denied';
+    try { res = await Notification.requestPermission(); } catch (e) { /* unsupported */ }
+    S.settings.permission = res === 'granted' ? 'granted' : res === 'denied' ? 'denied' : 'unknown';
+    render();
+    if (res === 'granted') toast('Reminders on', { kind: 'good' });
+    return;
+  }
   dialog({
     title: '“FoodMadeEasy” Would Like to Send You Notifications', body: 'Notifications may include alerts, sounds and icon badges.', ok: 'Allow', cancel: "Don't Allow",
     onOk: () => { S.settings.permission = 'granted'; render(); toast('Reminders on', { kind: 'good' }); },

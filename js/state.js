@@ -5,7 +5,7 @@ const STORE_KEY = 'fme-prototype-v1';
 function defaultDraft() {
   return {
     goal: null, kcal: '', protein: '', carbs: '', fat: '',
-    diet: 'none', dietOther: '', allergies: [], customAllergies: [], proteins: PROTEINS.map((p) => p.id), avoid: [], excludedRecipes: [],
+    diet: 'none', dietOther: '', allergies: [], customAllergies: [], proteins: PROTEINS.map((p) => p.id), carbTypes: CARBS.map((c) => c.id), avoid: [], excludedRecipes: [],
     mealsPerDay: 4, budget: '', variety: 'balanced', effort: 'normal',
     stores: [], storeCap: 2, startDate: null,
   };

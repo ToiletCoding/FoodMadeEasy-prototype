@@ -41,7 +41,9 @@ const Engine = (() => {
 
   function recipeAllowed(r, profile) {
     if ((profile.excludedRecipes || []).includes(r.id)) return false;
-    if (!allowedProteins(profile).includes(r.protein)) return false;
+    const liked = allowedProteins(profile);
+    if (![].concat(r.protein).every((x) => liked.includes(x))) return false;
+    if (r.kind === 'main' && r.carb && profile.carbTypes && !profile.carbTypes.includes(r.carb)) return false;
     return r.ing.every(([id]) => !ingBlockedBy(id, profile));
   }
 
@@ -56,6 +58,7 @@ const Engine = (() => {
     (profile.avoid || []).forEach((a) => tries.push({ label: `Allowing ${a.toLowerCase()}`, p: { ...profile, avoid: profile.avoid.filter((x) => x !== a) }, fix: 'food' }));
     if (profile.diet !== 'none') tries.push({ label: 'Dropping the diet filter', p: { ...profile, diet: 'none' }, fix: 'food' });
     if (profile.proteins.length < PROTEINS.length) tries.push({ label: 'Allowing all proteins', p: { ...profile, proteins: PROTEINS.map((x) => x.id) }, fix: 'food' });
+    if (profile.carbTypes && profile.carbTypes.length < CARBS.length) tries.push({ label: 'Allowing all carbs', p: { ...profile, carbTypes: CARBS.map((x) => x.id) }, fix: 'food' });
     let best = null;
     tries.forEach((t) => {
       const added = eligible(t.p, kind).length - base;
@@ -157,21 +160,39 @@ const Engine = (() => {
 
   // ---------- Prices and shopping ----------
 
+  // Offers that apply on the shop day: real feeds (offers.js) where we have them, mock offers otherwise.
+  function offersFor(shopDate, noData) {
+    if (noData) return [];
+    const real = OFFER_FEEDS.filter((f) => shopDate >= f.validFrom && shopDate <= f.validTo);
+    const realStores = new Set(real.map((f) => f.store));
+    const mock = OFFER_WEEKS[isoWeek(shopDate) % 2]
+      .filter((o) => !realStores.has(o.store))
+      .map((o) => ({ ...o, offerEnds: addDays(shopDate, o.ends) }));
+    const actual = real.flatMap((f) => f.items.map((i) => ({ store: f.store, ing: i.ing, size: i.size, label: i.label, price: i.price, offerEnds: f.validTo, product: i.name, real: f.week })));
+    return [...mock, ...actual];
+  }
+
   function priceTable(shopDate, noData) {
-    const offers = OFFER_WEEKS[isoWeek(shopDate) % 2];
+    const offers = offersFor(shopDate, noData);
     const table = {};
     Object.entries(ING).forEach(([id, ing]) => {
       if (ing.pantry) return;
       table[id] = {};
       STORES.forEach((s) => {
         const vary = 0.93 + (hashStr(id + s.id) % 15) / 100;
-        table[id][s.id] = ing.packs
+        const opts = ing.packs
           .filter((p) => !p[3] || p[3].includes(s.id))
-          .map(([size, label, base]) => {
-            const regular = Math.max(4, Math.round(base * s.level * vary));
-            const offer = !noData && offers.find((o) => o.store === s.id && o.ing === id && o.size === size && o.price < regular);
-            return { size, label, regular, price: offer ? offer.price : regular, offerEnds: offer ? addDays(shopDate, offer.ends) : null };
-          });
+          .map(([size, label, base]) => ({ size, label, regular: Math.max(4, Math.round(base * s.level * vary)), offerEnds: null }));
+        opts.forEach((o) => { o.price = o.regular; });
+        const perGram = Math.min(...opts.map((o) => o.regular / o.size));
+        offers.filter((o) => o.store === s.id && o.ing === id).forEach((o) => {
+          const same = opts.find((x) => x.size === o.size);
+          const regular = same ? same.regular : Math.max(4, Math.round(perGram * o.size * 1.05));
+          if (o.price >= regular) return;
+          const deal = { size: o.size, label: o.label || (same && same.label), regular, price: o.price, offerEnds: o.offerEnds, product: o.product || null, real: o.real || null };
+          if (same) Object.assign(same, deal); else opts.push(deal);
+        });
+        table[id][s.id] = opts;
       });
     });
     return table;
@@ -180,7 +201,7 @@ const Engine = (() => {
   function bestBuy(id, need, storeId, prices) {
     let best = null;
     prices[id][storeId].forEach((o) => {
-      const count = Math.max(1, Math.ceil(need / o.size - 0.02));
+      const count = Math.max(1, Math.ceil(need / o.size - 0.05)); // tolerate a shortfall under 5% of one pack
       const total = count * o.price;
       if (!best || total < best.total || (total === best.total && count < best.count)) best = { ...o, count, total, store: storeId };
     });
@@ -239,6 +260,7 @@ const Engine = (() => {
         id, name: ING[id].name, aisle: ING[id].aisle, store: buy.store, count: buy.count, size: buy.size, label: buy.label,
         price, regular: buy.regular, offer: !!buy.offerEnds && !offerEnded, offerEnds: buy.offerEnds, offerEnded,
         need, total: buy.count * price, bought, checked: bought >= buy.count, have: !!shop.have[id], isNew: !!shop.isNew[id],
+        product: buy.product, real: buy.real,
       };
     });
     const stores = plan.subset.map((sid) => {
@@ -308,7 +330,7 @@ const Engine = (() => {
     const portionPenalty = 250 * Math.max(0, Math.abs(Math.log(c.scale.a)) - 0.45) + 250 * Math.max(0, Math.abs(Math.log(c.scale.b)) - 0.55);
     const over = Math.max(0, c.cost - pr.budget);
     const effort = pr.effort === 'minimal' ? Math.max(0, c.prepMin - 70) * 0.8 : pr.effort === 'enjoy' ? 0 : Math.max(0, c.prepMin - 100) * 0.4;
-    return { macroPenalty, total: c.cost + macroPenalty + splitPenalty + portionPenalty + over * 2 + effort + c.freezePenalty };
+    return { macroPenalty, total: c.cost + macroPenalty + splitPenalty + portionPenalty + over * 2 + effort + c.freezePenalty + c.prefPenalty };
   }
 
   function evaluate(profile, slots, variety, mainIds, lightIds, prices, subsets, start) {
@@ -324,7 +346,29 @@ const Engine = (() => {
     const prepMin = mins.length ? mins[0] + mins.slice(1).reduce((s, m) => s + m * 0.5, 0) : 0;
     let freezePenalty = 0;
     meals.forEach((day, d) => day.forEach((rid) => { if (d > 2 && RECIPE[rid].kind === 'main' && !RECIPE[rid].freezes) freezePenalty += 6; }));
-    return { meals, portions, scale, avg, cost: opt.total, subset: opt.subset, prepMin, freezePenalty, mainIds, lightIds };
+    // Taste: omnivores rarely want a week of lentils, and two mains on the same protein feel repetitive.
+    const proteinIng = (rid) => (RECIPE[rid].ing.find((x) => x[2] === 'p') || [rid])[0];
+    const plantDiet = ['vegetarian', 'vegan'].includes(profile.diet);
+    let prefPenalty = 0;
+    mainIds.forEach((rid) => { if (!plantDiet && [].concat(RECIPE[rid].protein).includes('plant')) prefPenalty += 90; });
+    prefPenalty += (mainIds.length - new Set(mainIds.map(proteinIng)).size) * 60;
+    prefPenalty += (lightIds.length - new Set(lightIds.map(proteinIng)).size) * 20;
+    return { meals, portions, scale, avg, cost: opt.total, subset: opt.subset, prepMin, freezePenalty, prefPenalty, mainIds, lightIds };
+  }
+
+  // Rough value of one base serving: kr per 1,000 kcal, penalised when protein density is below target.
+  function valueScore(r, profile, prices) {
+    let cost = 0, kcal = 0, prot = 0;
+    r.ing.forEach(([id, g]) => {
+      const [k, p] = nutr(id, g);
+      kcal += k; prot += p;
+      if (ING[id].pantry) return;
+      let best = Infinity;
+      profile.stores.forEach((s) => prices[id][s].forEach((o) => { best = Math.min(best, o.price / o.size); }));
+      cost += best * g;
+    });
+    const target = profile.protein / profile.kcal;
+    return (cost / Math.max(kcal, 1)) * 1000 + 600 * Math.max(0, target - prot / Math.max(kcal, 1));
   }
 
   function generate(profile, opts = {}) {
@@ -355,7 +399,7 @@ const Engine = (() => {
     }
 
     if (!candidates.length) {
-      if (mains.length < k.main || lights.length < k.light) {
+      if ((!opts.fixedMains && mains.length < k.main) || lights.length < k.light) {
         const kind = mains.length < k.main ? 'main' : 'light';
         return {
           status: 'nomatch', kind, found: kind === 'main' ? mains.length : lights.length, needed: kind === 'main' ? k.main : k.light,
@@ -363,15 +407,24 @@ const Engine = (() => {
         };
       }
       const rng = makeRng(opts.seed || 1);
+      // With a large library, search a pool: the best-value recipes plus a few random ones for variety.
+      const pool = (list, top, extra) => {
+        const ranked = list.map((r) => [r.id, valueScore(r, profile, prices)]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+        const rest = ranked.slice(top);
+        for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+        return [...ranked.slice(0, top), ...rest.slice(0, extra)];
+      };
+      const mainSets = opts.fixedMains ? [opts.fixedMains] : combinations(pool(mains, 16, 8), k.main);
+      const lightSets = combinations(pool(lights, 8, 4), k.light);
       let pairs = [];
-      combinations(mains.map((r) => r.id), k.main).forEach((m) => combinations(lights.map((r) => r.id), k.light).forEach((l) => pairs.push([m, l])));
-      if (pairs.length > 900) {
+      mainSets.forEach((m) => lightSets.forEach((l) => pairs.push([m, l])));
+      if (pairs.length > 1400) {
         for (let i = pairs.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
-        pairs = pairs.slice(0, 900);
+        pairs = pairs.slice(0, 1400);
       }
       candidates = pairs.map(([m, l]) => {
-        // Shuffle which main goes to lunch vs dinner so repeated builds differ.
-        const mm = rng() < 0.5 ? m : m.slice().reverse();
+        // Shuffle which main goes to lunch vs dinner so repeated builds differ (not for meals the user picked).
+        const mm = opts.fixedMains || rng() < 0.5 ? m : m.slice().reverse();
         return evaluate(profile, slots, variety, mm, l, prices, subsets, start);
       });
     }
@@ -416,7 +469,7 @@ const Engine = (() => {
       id: uid(), status: 'draft', createdAt: Date.now(), start, shopDate,
       profile: clone(profile), slots, variety,
       meals: chosen.meals, portions: chosen.portions, userPortion: {}, scale: chosen.scale, subset: chosen.subset,
-      noData: !!opts.noData, seed: opts.seed || 1,
+      noData: !!opts.noData, seed: opts.seed || 1, picked: !!opts.fixedMains,
       shop: { checked: {}, have: {}, isNew: {}, removed: [], doneShown: false },
       prep: { step: 0, started: null, done: null, startedAt: null },
     };
@@ -562,32 +615,44 @@ const Engine = (() => {
     return next;
   }
 
+  function swapContext(plan, today) {
+    return {
+      shop: shoppingList(plan, today).total, avg: weekAvg(plan),
+      prep: plan.meals.flat().some((x) => RECIPE[x].kind === 'main') ? prepPlan(plan).minutes : 0,
+      cooked: cookedCount(plan),
+    };
+  }
+
+  // What swapping rid for newId would do to the week: macros, cost, prep.
+  function evaluateSwap(plan, rid, newId, scope, today, ctx = swapContext(plan, today)) {
+    const r = RECIPE[rid];
+    const c = RECIPE[newId];
+    const pr = plan.profile;
+    const next = withSwap(plan, rid, newId, scope);
+    const avg = weekAvg(next);
+    const cost = shoppingList(next, today).total - ctx.shop;
+    const onTarget = Math.abs(avg.kcal - pr.kcal) <= pr.kcal * 0.05 && avg.p >= pr.protein * 0.95;
+    const dP = avg.p - ctx.avg.p;
+    const dCooked = cookedCount(next) - ctx.cooked;
+    let prep = 'No prep change';
+    if (c.kind === 'main') {
+      const prepMin = prepPlan(next).minutes - ctx.prep;
+      prep = dCooked > 0 ? `+${dCooked} recipe to prep` : prepMin > 4 ? `+${Math.round(prepMin)} min prep` : prepMin < -4 ? `${Math.round(prepMin)} min prep` : 'Same prep time';
+    } else prep = `${c.minutes} min on the day`;
+    return {
+      id: newId, plan: next, macros: mealMacros(next, newId), cost, onTarget, dP, prep,
+      score: cost + (onTarget ? 0 : 40) + Math.max(0, -dP) * 4 + Math.max(0, dCooked) * 25 + (plan.meals.flat().includes(newId) ? 15 : 0) + (r.kind === 'main' && c.library ? 3 : 0),
+    };
+  }
+
   function alternatives(plan, rid, scope, today, exclude = []) {
     const r = RECIPE[rid];
-    const pr = plan.profile;
-    const baseShop = shoppingList(plan, today);
-    const baseAvg = weekAvg(plan);
-    const basePrep = plan.meals.flat().some((x) => RECIPE[x].kind === 'main') ? prepPlan(plan).minutes : 0;
-    const baseCooked = cookedCount(plan);
-    return RECIPES
-      .filter((c) => c.kind === r.kind && c.id !== rid && !exclude.includes(c.id) && recipeAllowed(c, pr))
-      .map((c) => {
-        const next = withSwap(plan, rid, c.id, scope);
-        const avg = weekAvg(next);
-        const cost = shoppingList(next, today).total - baseShop.total;
-        const onTarget = Math.abs(avg.kcal - pr.kcal) <= pr.kcal * 0.05 && avg.p >= pr.protein * 0.95;
-        const dP = avg.p - baseAvg.p;
-        const prepMin = r.kind === 'main' ? prepPlan(next).minutes - basePrep : 0;
-        const dCooked = cookedCount(next) - baseCooked;
-        let prep = 'No prep change';
-        if (r.kind === 'main') prep = dCooked > 0 ? `+${dCooked} recipe to prep` : prepMin > 4 ? `+${Math.round(prepMin)} min prep` : prepMin < -4 ? `${Math.round(prepMin)} min prep` : 'Same prep time';
-        else prep = `${c.minutes} min on the day`;
-        return {
-          id: c.id, plan: next, macros: mealMacros(next, c.id), cost, onTarget, dP, prep,
-          score: cost + (onTarget ? 0 : 40) + Math.max(0, -dP) * 4 + Math.max(0, dCooked) * 25 + (plan.meals.flat().includes(c.id) ? 15 : 0),
-        };
-      })
-      .sort((a, b) => a.score - b.score);
+    const ctx = swapContext(plan, today);
+    const prices = priceTable(plan.shopDate, plan.noData);
+    const cands = RECIPES.filter((c) => c.kind === r.kind && c.id !== rid && !exclude.includes(c.id) && recipeAllowed(c, plan.profile));
+    // Pre-rank cheaply, then fully evaluate the best 14.
+    const ranked = cands.map((c) => [c, valueScore(c, plan.profile, prices)]).sort((a, b) => a[1] - b[1]).slice(0, 14).map((x) => x[0]);
+    return ranked.map((c) => evaluateSwap(plan, rid, c.id, scope, today, ctx)).sort((a, b) => a.score - b.score);
   }
 
   // Recompute the shopping state after the meals changed: new items are flagged, dropped ones listed.
@@ -613,6 +678,6 @@ const Engine = (() => {
   return {
     generate, eligible, recipeAllowed, ingBlockedBy, allowedProteins, mostLimitingFilter,
     servingIngs, mealMacros, dayTotals, weekAvg, dayStatus,
-    shoppingList, prepPlan, alternatives, withSwap, reconcileShopping, cookedCount, priceTable,
+    shoppingList, prepPlan, alternatives, evaluateSwap, withSwap, reconcileShopping, cookedCount, priceTable,
   };
 })();

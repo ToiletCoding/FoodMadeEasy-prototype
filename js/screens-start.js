@@ -134,8 +134,8 @@ const STEP_DEFS = {
   food: {
     title: 'What do you eat?',
     helper: 'Only what matters for planning. You can change this anytime.',
-    valid: (d) => Engine.allowedProteins(d).length > 0,
-    hint: () => 'Pick at least one protein',
+    valid: (d) => Engine.allowedProteins(d).length > 0 && (!d.carbTypes || d.carbTypes.length > 0),
+    hint: (d) => (Engine.allowedProteins(d).length ? 'Pick at least one carb' : 'Pick at least one protein'),
     body: (d, root) => {
       const diets = [['none', 'No restrictions'], ['vegetarian', 'Vegetarian'], ['pescatarian', 'Pescatarian'], ['vegan', 'Vegan'], ['other', 'Other']];
       const allowed = Engine.allowedProteins({ ...d, proteins: PROTEINS.map((p) => p.id) });
@@ -157,6 +157,8 @@ const STEP_DEFS = {
           return chip(p.label, ok && d.proteins.includes(p.id), 'toggleList', { root, k: 'proteins', v: p.id }, { disabled: !ok });
         }).join('')}</div>
         ${allowed.length < PROTEINS.length ? `<p class="fine">Greyed-out proteins aren't in a ${d.diet} plan.</p>` : ''}
+        <div class="section-label">Carbs you like</div>
+        <div class="chips">${CARBS.map((c) => chip(c.label, (d.carbTypes || CARBS.map((x) => x.id)).includes(c.id), 'toggleCarb', { root, v: c.id })).join('')}</div>
         <div class="section-label">Foods you won't eat <span class="opt">Optional</span></div>
         <button class="row-btn" data-act="openAvoid" data-root="${root}">
           <span>${d.avoid.length ? d.avoid.map((a) => `<span class="tag">${esc(a)}</span>`).join('') : '<span class="muted">Add foods to skip · e.g. mushrooms, tuna</span>'}</span>${icon('chev-right')}</button>`;
@@ -218,6 +220,13 @@ ACT.toggleList = (dt) => {
   if (i >= 0) list.splice(i, 1); else list.push(dt.v);
   render();
 };
+ACT.toggleCarb = (dt) => {
+  const d = draftFor(dt.root);
+  if (!d.carbTypes) d.carbTypes = CARBS.map((c) => c.id);
+  const i = d.carbTypes.indexOf(dt.v);
+  if (i >= 0) d.carbTypes.splice(i, 1); else d.carbTypes.push(dt.v);
+  render();
+};
 ACT.clearAllergies = (dt) => { const d = draftFor(dt.root); d.allergies = []; d.customAllergies = []; render(); };
 ACT.startAddAllergy = (dt) => { U.addingAllergy = dt.root; U.form = { ...(U.form || {}), allergyText: '' }; render(); };
 ACT.addAllergy = (dt) => {
@@ -273,10 +282,11 @@ function summaryRows(d) {
   const diet = { none: 'No restrictions', vegetarian: 'Vegetarian', pescatarian: 'Pescatarian', vegan: 'Vegan', other: d.dietOther || 'Other' }[d.diet];
   const allergies = [...d.allergies, ...d.customAllergies];
   const nProt = Engine.allowedProteins(d).length;
+  const nCarb = (d.carbTypes || CARBS).length;
   return [
     ['goal', 'Goal', (GOALS.find((g) => g.id === d.goal) || {}).label || '—'],
     ['targets', 'Targets', `${fmtNum(d.kcal)} kcal · ${d.protein}P · ${d.carbs}C · ${d.fat}F`],
-    ['food', 'Food', `${diet} · ${allergies.length ? `No ${allergies.join(', ').toLowerCase()}` : 'No allergies'} · ${nProt} protein${nProt === 1 ? '' : 's'}${d.avoid.length ? ` · Skipping: ${d.avoid.join(', ').toLowerCase()}` : ''}`],
+    ['food', 'Food', `${diet} · ${allergies.length ? `No ${allergies.join(', ').toLowerCase()}` : 'No allergies'} · ${nProt} protein${nProt === 1 ? '' : 's'} · ${nCarb} carb${nCarb === 1 ? '' : 's'}${d.avoid.length ? ` · Skipping: ${d.avoid.join(', ').toLowerCase()}` : ''}`],
     ['planning', 'Planning', `${d.mealsPerDay} meals/day · ${fmtNum(d.budget)} kr/week · ${{ low: 'Low', balanced: 'Balanced', high: 'High' }[d.variety]} variety · ${{ minimal: 'Minimal', normal: 'Normal', enjoy: 'Enjoys cooking' }[d.effort]} effort`],
     ['stores', 'Stores', `${d.stores.map((s) => STORES.find((x) => x.id === s).name).join(', ')}${d.stores.length > 1 ? ` · ${d.storeCap === 1 ? '1 store' : `up to ${d.storeCap}`} per week` : ''}`],
   ];

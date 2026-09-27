@@ -23,9 +23,10 @@ SCREENS.shop = () => {
   const b = budgetStatus(sl.total, p.profile.budget);
   const allDone = sl.count > 0 && sl.done >= sl.count;
   const row = (i) => {
+    // Swipe left on a row = "Already have it" (handled in SCREENS.shop.after).
     const partial = i.bought > 0 && !i.checked;
     const cls = [i.checked || i.have ? 'done' : '', U.justChecked[i.id] ? 'just' : ''].join(' ');
-    return `<div class="item-row ${cls}">
+    return `<div class="item-row ${cls}" data-swipe-have="${i.have || i.checked ? '' : i.id}">
       <button class="cb ${i.checked ? 'on' : ''}" data-act="checkItem" data-id="${i.id}" aria-label="${i.checked ? 'Unmark' : 'Mark'} ${esc(i.name)} as bought" ${i.have ? 'disabled' : ''}>${i.checked ? icon('check') : ''}</button>
       <button class="ir-main" data-act="openItem" data-id="${i.id}">
         <span class="ir-name">${esc(i.name)}${i.isNew && !i.checked ? ' <span class="badge new">New</span>' : ''}</span>
@@ -66,6 +67,22 @@ SCREENS.shop = () => {
       <section class="store-sec"><button class="store-head" data-act="toggleStore" data-id="pantry"><b class="grow">Assumed at home</b><span class="muted small">not priced</span><span class="chev ${U.collapsed.pantry === false ? 'open' : ''}">${icon('chev-right')}</span></button>
         ${U.collapsed.pantry === false ? `<div class="card list-card">${PANTRY_NOTE.map((x) => `<div class="ing-row"><span>${x}</span></div>`).join('')}<p class="fine pad-s">Missing any? Pick it up at your first store.</p></div>` : ''}</section>
       <p class="fine center">Prices are estimates from this week's offers and regular prices. Your receipt may differ slightly.</p></div>`,
+  });
+};
+
+SCREENS.shop.after = (root) => {
+  root.querySelectorAll('[data-swipe-have]').forEach((row) => {
+    const id = row.dataset.swipeHave;
+    if (!id) return;
+    let x0 = null;
+    row.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+    row.addEventListener('touchmove', (e) => { if (x0 != null) { const dx = Math.min(0, e.touches[0].clientX - x0); row.style.transform = `translateX(${Math.max(dx, -120)}px)`; } }, { passive: true });
+    row.addEventListener('touchend', (e) => {
+      const dx = x0 == null ? 0 : e.changedTouches[0].clientX - x0;
+      x0 = null;
+      row.style.transform = '';
+      if (dx < -80) ACT.toggleHave({ id });
+    });
   });
 };
 
@@ -151,6 +168,8 @@ SHEETS.item = ({ id }) => {
     <div class="sheet-body">
       <div class="kv"><span>Price</span><b>${fmtKr(i.price)}${i.offer ? ` <small class="good">offer, normally ${fmtKr(i.regular)}</small>` : ''}${i.offerEnded ? ' <small class="warn">offer ended</small>' : ''}</b></div>
       ${i.offerEnds ? `<div class="kv"><span>${i.offerEnded ? 'Offer ended' : 'Valid until'}</span><b>${fmtDay(i.offerEnds)}</b></div>` : ''}
+      ${i.product ? `<div class="kv"><span>In the avis as</span><b>${esc(i.product)}</b></div>` : ''}
+      ${i.real ? `<p class="fine">Real offer from ${esc(store.name)}'s tilbudsavis (${esc(i.real.replace('-W', ' week '))}). Regular price is estimated.</p>` : ''}
       <div class="why">You need <b>${needTxt}</b> · buying <b>${qtyText(i)}</b>${extra > 20 ? ` (${extraTxt})` : ''}</div>
       <div class="section-label">Used in</div>
       <div class="list">${Object.entries(used).map(([rid, n]) => `<button class="list-row" data-act="openRecipe" data-rid="${rid}" data-which="plan">${thumb(rid, 32)}<span class="grow">${esc(RECIPE[rid].name)}</span><span class="muted">${n} serving${n > 1 ? 's' : ''}</span></button>`).join('')}</div>

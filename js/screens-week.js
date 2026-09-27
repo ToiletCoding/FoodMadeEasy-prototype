@@ -29,7 +29,7 @@ function startGeneration(o) {
     if (!U.gen) return;
     const fail = S.dev.failNext;
     S.dev.failNext = false;
-    U.gen.result = Engine.generate(profile, { start, seed: o.seed, avoid: o.avoid, repeat: o.repeat, noData: S.dev.noData, fail });
+    U.gen.result = Engine.generate(profile, { start, seed: o.seed, avoid: o.avoid, repeat: o.repeat, fixedMains: o.fixedMains, noData: S.dev.noData, fail });
   }, 60);
   clearInterval(U.genTimer);
   U.genTimer = setInterval(tickGeneration, 850);
@@ -124,7 +124,9 @@ SCREENS.ready = () => {
         ${stat(`${mainServings(p)} meals`, 'prepped for the week')}
         ${stat(prep.minutes ? fmtDuration(prep.minutes) : '—', `${weekday(p.shopDate)} prep`)}
       </div>
-      ${over ? notice(`Closest we could get with your stores. Try ‘Up to ${Math.min(3, pr.stores.length)} stores’ or a bigger budget. <button class="link" data-act="editSection" data-s="planning">Adjust</button>`, { kind: 'warn' }) : ''}
+      ${over ? notice(`${p.picked ? 'Your picked meals come to a bit more than your budget. Swap one for something cheaper, or raise the budget.'
+        : pr.storeCap < pr.stores.length ? `Closest we could get with your stores. Try up to ${Math.min(3, pr.stores.length)} stores a week, or a bigger budget.`
+        : 'Closest we could get with your stores and budget. Adding a store or raising the budget would help.'} <button class="link" data-act="editSection" data-s="${!p.picked && pr.storeCap < pr.stores.length ? 'stores' : 'planning'}">Adjust</button>`, { kind: 'warn' }) : ''}
       <div class="section-label">What's in your week</div>
       <div class="meal-strip">${Object.entries(counts).map(([rid, n]) => `<button class="ms-item" data-act="openRecipe" data-rid="${rid}" data-which="draft">${thumb(rid, 64)}<span>${esc(RECIPE[rid].name)}</span><small>×${n}</small></button>`).join('')}</div>
       ${p.noData ? notice('Prices are rough estimates this week. We couldn\'t get current offers, so we used typical prices.', { kind: 'warn' })
@@ -194,7 +196,7 @@ SCREENS.home = () => {
         <div class="card hero-empty">${empty({
           art: '🥣🛒🥡', title: "Let's plan your week",
           text: `Meals that hit ${fmtNum(pr.kcal)} kcal and ${pr.protein}P, a shopping list under ${fmtKr(pr.budget)}, and a prep plan. About 15 seconds.`,
-          action: `${btn('Build My Week', 'buildWeek', { disabled: !online() })}${a.lastPlan ? btn('Repeat last week', 'openNextWeek', { kind: 'text' }) : ''}`,
+          action: `${btn('Build My Week', 'buildWeek', { disabled: !online() })}${btn('Pick my own meals', 'openMixer', { kind: 'text' })}${a.lastPlan ? btn('Repeat last week', 'openNextWeek', { kind: 'text' }) : ''}`,
         })}</div></div>`,
     });
   }
@@ -389,7 +391,7 @@ SCREENS.recipe = ({ rid, which, d, si, portion, preview }) => {
   const daysUsed = p.meals.map((day, i) => (day.includes(rid) ? weekday(addDays(p.start, i)) : null)).filter(Boolean);
   const dayText = daysUsed.length === 7 ? 'Mon–Sun' : daysUsed.join(', ');
   const bar = (label, g, max, cls) => `<div class="mbar"><span>${label}</span><div class="mb-track"><div class="${cls}" style="width:${Math.min(100, (g / max) * 100)}%"></div></div><b>${Math.round(g)} g</b></div>`;
-  const tags = [isMain ? 'Meal-prep friendly' : 'Ready in 5 min', m.p >= 40 ? 'High protein' : null, isMain && r.freezes ? 'Freezes well' : null].filter(Boolean);
+  const tags = [r.mix ? 'Mix & match' : null, isMain ? 'Meal-prep friendly' : 'Ready in 5 min', m.p >= 40 ? 'High protein' : null, isMain && r.freezes ? 'Freezes well' : null].filter(Boolean);
   const allergens = [...new Set(r.ing.flatMap(([id]) => ING[id].allergens || []))];
   const batch = U.batchView;
   return screen({
@@ -416,7 +418,7 @@ SCREENS.recipe = ({ rid, which, d, si, portion, preview }) => {
       <p class="fine">${allergens.length ? `Contains: ${allergens.join(', ').toLowerCase()}. ` : ''}Always check product labels. Allergen data may be incomplete.</p>
       </div>`,
     footer: preview ? btn('Choose This Meal', 'choosePreview', { data: { rid } })
-      : readOnly ? '' : btn('Replace Meal', 'openReplace', { data: { rid, d: d ?? '', si: si ?? '', which }, disabled: !online() }),
+      : readOnly ? '' : `${btn('Replace Meal', 'openReplace', { data: { rid, d: d ?? '', si: si ?? '', which }, disabled: !online() })}${isMain ? btn('Change the parts', 'openReplace', { kind: 'text', data: { rid, d: d ?? '', si: si ?? '', which, mode: 'build' }, disabled: !online() }) : ''}`,
   });
 };
 SCREENS.recipe.after = (root) => {
@@ -470,7 +472,7 @@ ACT.openReplace = (d) => {
   let dd = d.d === '' || d.d == null ? null : Number(d.d);
   let si = d.si === '' || d.si == null ? null : Number(d.si);
   if (dd == null) { outer: for (let i = 0; i < 7; i++) for (let j = 0; j < p.slots.length; j++) if (p.meals[i][j] === rid) { dd = i; si = j; break outer; } }
-  U.replace = { rid, d: dd, si, which: d.which, scope: RECIPE[rid].kind === 'main' && count > 1 ? 'all' : 'one', selected: null, exclude: [], dont: false };
+  U.replace = { rid, d: dd, si, which: d.which, scope: RECIPE[rid].kind === 'main' && count > 1 ? 'all' : 'one', selected: null, exclude: [], dont: false, mode: d.mode || 'suggest' };
   U.sheet = null;
   openSheet('replace', { tall: true });
 };
@@ -489,16 +491,18 @@ SHEETS.replace = () => {
   const p = planFor(R.which);
   const r = RECIPE[R.rid];
   const count = p.meals.flat().filter((x) => x === R.rid).length;
-  const alts = replaceAlts();
+  const build = R.mode === 'build';
+  const alts = build ? [] : replaceAlts();
   const shopStarted = R.which === 'plan' && Object.keys(p.shop.checked).length > 0;
   const prepped = R.which === 'plan' && p.prep.done && r.kind === 'main';
   const oneLabel = `Only ${weekday(addDays(p.start, R.d))} ${SLOT_LABEL[p.slots[R.si]].toLowerCase()}`;
   return `<div class="sheet-head"><h2>Replace ${esc(r.name)}</h2><p class="muted">Everything else in your week stays the same.</p></div>
     <div class="sheet-body">
     ${count > 1 ? `<div class="seg two">${[['all', `All ${count} servings`], ['one', oneLabel]].map(([v, l]) => `<button class="${R.scope === v ? 'on' : ''}" data-act="replaceScope" data-v="${v}">${l}</button>`).join('')}</div>` : ''}
+    ${r.kind === 'main' ? `<div class="seg two">${[['suggest', 'Suggestions'], ['build', 'Build your own']].map(([v, l]) => `<button class="${(R.mode || 'suggest') === v ? 'on' : ''}" data-act="replaceMode" data-v="${v}">${l}</button>`).join('')}</div>` : ''}
     ${shopStarted ? notice("You've already bought some items. We'll add what's new to your list.", { kind: 'warn' }) : ''}
     ${prepped ? notice("You've already prepped this meal. Swapping only changes your plan, not your containers.", { kind: 'warn' }) : ''}
-    ${alts.length ? `<div class="alt-list">${alts.map((x) => {
+    ${build ? replaceBuildBody() : alts.length ? `<div class="alt-list">${alts.map((x) => {
       const c = RECIPE[x.id];
       const cost = Math.round(x.cost);
       return `<div class="alt-card ${R.selected === x.id ? 'on' : ''}" data-act="pickAlt" data-id="${x.id}" role="button" tabindex="0">
@@ -515,7 +519,8 @@ SHEETS.replace = () => {
     </div>
     <div class="sheet-foot">${btn('Swap Meal', 'doSwap', { disabled: !R.selected, busy: U.busy })}</div>`;
 };
-ACT.replaceScope = (d) => { U.replace.scope = d.v; U.replace.selected = null; render(); };
+ACT.replaceScope = (d) => { U.replace.scope = d.v; U.replace.selected = null; U.replace.buildEval = null; render(); };
+ACT.replaceMode = (d) => { U.replace.mode = d.v; U.replace.selected = null; render({ sheetTop: true }); };
 ACT.pickAlt = (d) => { U.replace.selected = d.id; render(); };
 ACT.moreAlts = () => { const R = U.replace; R.exclude = [...R.exclude, ...R.cache.map((x) => x.id)]; R.selected = null; render({ sheetTop: true }); };
 ACT.resetAlts = () => { U.replace.exclude = []; render(); };
@@ -532,7 +537,7 @@ ACT.doSwap = () => {
   const a = acct();
   const key = R.which === 'draft' ? 'draft' : 'plan';
   const before = a[key];
-  const alt = R.cache.find((x) => x.id === R.selected);
+  const alt = R.mode === 'build' ? R.buildEval : R.cache.find((x) => x.id === R.selected);
   U.busy = true; render();
   setTimeout(() => {
     U.busy = false;
@@ -588,7 +593,7 @@ SHEETS.rebuild = () => {
     <p class="body-text">Your current plan stays active until you choose the new one.</p>
     ${sl.done ? notice(`You've checked off ${sl.done} item${sl.done > 1 ? 's' : ''}. A new plan may need different groceries.`, { kind: 'warn' }) : ''}
     ${p.prep.done ? notice("You've already prepped this week. Rebuilding is usually best for next week.", { kind: 'warn' }) : ''}
-    </div><div class="sheet-foot">${btn('Rebuild Week', 'doRebuild', { disabled: !online() })}${btn('Cancel', 'closeSheet', { kind: 'text' })}</div>`;
+    </div><div class="sheet-foot">${btn('Rebuild Week', 'doRebuild', { disabled: !online() })}${btn('Pick my own meals instead', 'openMixer', { kind: 'text', data: { origin: 'rebuild', start: p.start } })}${btn('Cancel', 'closeSheet', { kind: 'text' })}</div>`;
 };
 ACT.doRebuild = () => { U.sheet = null; startGeneration({ origin: 'rebuild', seed: 3 + Math.floor(Math.random() * 1000), avoid: [...new Set(acct().plan.meals.flat().filter((r) => RECIPE[r].kind === 'main'))] }); };
 
@@ -613,6 +618,7 @@ SHEETS.nextWeek = () => {
   return `<div class="sheet-head"><h2>Plan ${fmtDay(n.start)} – ${fmtDay(addDays(n.start, 6))}</h2></div><div class="sheet-body"><div class="stack">
     ${card('repeat', 'Repeat this week', n.est != null ? `Same meals, new prices. Est. ${fmtKr(n.est)}.` : "Some meals no longer fit your settings.", n.est == null)}
     ${card('new', 'Build a new week', "Fresh meals from this week's offers.")}
+    <button class="option-card" data-act="openMixer" data-origin="next" data-start="${n.start}"><span><b>Pick my own meals</b><small>Choose protein, carb, veg and flavour yourself.</small></span>${icon('chev-right')}</button>
     <button class="option-card" data-act="nextChange"><span><b>Change something first</b><small>Update targets, food, budget or stores.</small></span>${icon('chev-right')}</button>
     </div></div><div class="sheet-foot">${btn('Build Next Week', 'buildNext', { disabled: !online() })}</div>`;
 };

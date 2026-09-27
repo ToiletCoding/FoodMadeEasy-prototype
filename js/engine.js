@@ -17,7 +17,8 @@ const Engine = (() => {
     if (!t) return false;
     const re = new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(e?s)?\\b`, 'i');
     const ing = ING[ingId];
-    return re.test(ing.name) || ing.tags.some((tag) => re.test(tag));
+    const da = typeof ING_DA !== 'undefined' && ING_DA[ingId];
+    return re.test(ing.name) || (da && re.test(da)) || ing.tags.some((tag) => re.test(tag));
   }
 
   function ingBlockedBy(ingId, profile) {
@@ -41,6 +42,7 @@ const Engine = (() => {
 
   function recipeAllowed(r, profile) {
     if ((profile.excludedRecipes || []).includes(r.id)) return false;
+    if (profile.ratings && profile.ratings[r.id] === -1) return false;
     const liked = allowedProteins(profile);
     if (![].concat(r.protein).every((x) => liked.includes(x))) return false;
     if (r.kind === 'main' && r.carb && profile.carbTypes && !profile.carbTypes.includes(r.carb)) return false;
@@ -82,19 +84,57 @@ const Engine = (() => {
     return (plan.portions[rid] || 1) * ((plan.userPortion && plan.userPortion[rid]) || 1);
   }
 
-  // Per-serving ingredient amounts for a recipe in this plan.
-  function servingIngs(plan, rid) {
+  // Training/rest days: weekday numbers (0 = Sun) in profile.trainingDays; rest days use profile.restKcal.
+  function isTrainingDay(profile, start, d) {
+    if (!profile.restKcal) return true;
+    return (profile.trainingDays || []).includes(parseISO(addDays(start, d)).getDay());
+  }
+  function dayTarget(profile, start, d) {
+    return isTrainingDay(profile, start, d) ? profile.kcal : profile.restKcal;
+  }
+  function avgTarget(profile, start) {
+    if (!profile.restKcal || !start) return profile.kcal;
+    let t = 0;
+    for (let d = 0; d < 7; d++) t += dayTarget(profile, start, d);
+    return t / 7;
+  }
+  // Portion multiplier for breakfasts and snacks on day d, so each day hits its own calorie target.
+  function lightMult(plan, d) {
+    const pr = plan.profile;
+    if (!pr.restKcal || d == null || !plan.start) return 1;
+    if (!plan._lm || plan._lmKey !== JSON.stringify([plan.meals, plan.userPortion, plan.portions, plan.scale, pr.kcal, pr.restKcal, pr.trainingDays])) {
+      plan._lmKey = JSON.stringify([plan.meals, plan.userPortion, plan.portions, plan.scale, pr.kcal, pr.restKcal, pr.trainingDays]);
+      plan._lm = plan.meals.map((day, i) => {
+        // Only the non-protein part of breakfasts/snacks flexes, so protein stays the same every day.
+        let base = 0, flex = 0;
+        day.forEach((rid) => {
+          servingIngs(plan, rid).forEach(([id, g, role]) => {
+            const k = nutr(id, g)[0];
+            base += k;
+            if (RECIPE[rid].kind === 'light' && role !== 'p') flex += k;
+          });
+        });
+        if (flex < 1) return 1;
+        return Math.min(2.6, Math.max(0.2, Math.round((1 + (dayTarget(pr, plan.start, i) - base) / flex) * 20) / 20));
+      });
+    }
+    return plan._lm[d];
+  }
+
+  // Per-serving ingredient amounts for a recipe in this plan (on day d when given).
+  function servingIngs(plan, rid, d = null) {
     const r = RECIPE[rid];
     const pm = portionOf(plan, rid);
+    const lm = r.kind === 'light' && d != null ? lightMult(plan, d) : 1;
     return r.ing.map(([id, g, role]) => {
-      const raw = g * roleScale(role, plan.scale) * pm;
+      const raw = g * roleScale(role, plan.scale) * pm * (role === 'p' ? 1 : lm);
       return [id, ING[id].pantry ? raw : round5(raw), role];
     });
   }
 
-  function mealMacros(plan, rid) {
+  function mealMacros(plan, rid, d = null) {
     const t = { kcal: 0, p: 0, c: 0, f: 0, g: 0 };
-    servingIngs(plan, rid).forEach(([id, g]) => {
+    servingIngs(plan, rid, d).forEach(([id, g]) => {
       const [k, p, c, f] = nutr(id, g);
       t.kcal += k; t.p += p; t.c += c; t.f += f;
       if (!ING[id].pantry) t.g += g * (ING[id].cooked || 1);
@@ -105,7 +145,7 @@ const Engine = (() => {
   function dayTotals(plan, d) {
     const t = { kcal: 0, p: 0, c: 0, f: 0 };
     plan.meals[d].forEach((rid) => {
-      const m = mealMacros(plan, rid);
+      const m = mealMacros(plan, rid, d);
       t.kcal += m.kcal; t.p += m.p; t.c += m.c; t.f += m.f;
     });
     return t;
@@ -124,15 +164,17 @@ const Engine = (() => {
   function dayStatus(plan, d) {
     const t = dayTotals(plan, d);
     const pr = plan.profile;
-    const dk = t.kcal - pr.kcal;
+    const target = dayTarget(pr, plan.start, d);
+    const training = pr.restKcal ? isTrainingDay(pr, plan.start, d) : null;
+    const dk = t.kcal - target;
     const dp = t.p - pr.protein;
-    if (Math.abs(dk) > pr.kcal * 0.05) return { ok: false, label: `${signed(dk)} kcal`, dk, dp };
-    if (t.p < pr.protein * 0.95) return { ok: false, label: `${signed(dp)}P`, dk, dp };
-    return { ok: true, label: 'On target', dk, dp };
+    if (Math.abs(dk) > target * 0.05) return { ok: false, label: `${signed(dk)} kcal`, dk, dp, target, training };
+    if (t.p < pr.protein * 0.95) return { ok: false, label: `${signed(dp)}P`, dk, dp, target, training };
+    return { ok: true, label: 'On target', dk, dp, target, training };
   }
 
   // Solve protein-role scale (a) and carb-role scale (b) so the weekly average hits kcal and protein.
-  function solveScale(meals, profile, portions) {
+  function solveScale(meals, profile, portions, start) {
     let K0 = 0, Kp = 0, Kc = 0, P0 = 0, Pp = 0, Pc = 0;
     meals.forEach((day) => day.forEach((rid) => {
       const pm = portions[rid] || 1;
@@ -142,7 +184,8 @@ const Engine = (() => {
       });
     }));
     [K0, Kp, Kc, P0, Pp, Pc] = [K0, Kp, Kc, P0, Pp, Pc].map((v) => v / 7);
-    const Kt = profile.kcal, Pt = profile.protein;
+    // With rest days, lighter breakfasts/snacks also lose a little protein, so aim slightly higher.
+    const Kt = avgTarget(profile, start), Pt = profile.protein * (profile.restKcal ? 1.05 : 1);
     const clampA = (v) => Math.min(3, Math.max(0.5, v));
     const clampB = (v) => Math.min(3.2, Math.max(0.4, v));
     let a = 1, b = 1;
@@ -210,8 +253,8 @@ const Engine = (() => {
 
   function needsOf(plan) {
     const needs = {};
-    plan.meals.forEach((day) => day.forEach((rid) => {
-      servingIngs(plan, rid).forEach(([id, g]) => {
+    plan.meals.forEach((day, d) => day.forEach((rid) => {
+      servingIngs(plan, rid, d).forEach(([id, g]) => {
         if (ING[id].pantry) return;
         needs[id] = (needs[id] || 0) + g;
       });
@@ -320,7 +363,8 @@ const Engine = (() => {
 
   function scoreCandidate(c, profile) {
     const pr = profile;
-    const kdev = Math.abs(c.avg.kcal - pr.kcal) / pr.kcal;
+    const kt = avgTarget(pr, c.start);
+    const kdev = Math.abs(c.avg.kcal - kt) / kt;
     const pshort = Math.max(0, (pr.protein - c.avg.p) / pr.protein);
     const fdev = Math.abs(c.avg.f - pr.fat) / pr.fat;
     const cdev = Math.abs(c.avg.c - pr.carbs) / Math.max(pr.carbs, 50);
@@ -336,8 +380,8 @@ const Engine = (() => {
   function evaluate(profile, slots, variety, mainIds, lightIds, prices, subsets, start) {
     const meals = layout(slots, variety, mainIds, lightIds);
     const portions = {};
-    const scale = solveScale(meals, profile, portions);
-    const plan = { meals, portions, scale, userPortion: {}, profile };
+    const scale = solveScale(meals, profile, portions, start);
+    const plan = { meals, portions, scale, userPortion: {}, profile, start };
     const avg = weekAvg(plan);
     const needs = needsOf(plan);
     const opt = optimizeStores(needs, profile.stores, subsets, prices);
@@ -345,7 +389,7 @@ const Engine = (() => {
     const mins = [...cooked].map((rid) => RECIPE[rid].minutes).sort((x, y) => y - x);
     const prepMin = mins.length ? mins[0] + mins.slice(1).reduce((s, m) => s + m * 0.5, 0) : 0;
     let freezePenalty = 0;
-    meals.forEach((day, d) => day.forEach((rid) => { if (d > 2 && RECIPE[rid].kind === 'main' && !RECIPE[rid].freezes) freezePenalty += 6; }));
+    if (profile.prepMode !== 'two') meals.forEach((day, d) => day.forEach((rid) => { if (d > 2 && RECIPE[rid].kind === 'main' && !RECIPE[rid].freezes) freezePenalty += 6; }));
     // Taste: omnivores rarely want a week of lentils, and two mains on the same protein feel repetitive.
     const proteinIng = (rid) => (RECIPE[rid].ing.find((x) => x[2] === 'p') || [rid])[0];
     const plantDiet = ['vegetarian', 'vegan'].includes(profile.diet);
@@ -353,7 +397,10 @@ const Engine = (() => {
     mainIds.forEach((rid) => { if (!plantDiet && [].concat(RECIPE[rid].protein).includes('plant')) prefPenalty += 90; });
     prefPenalty += (mainIds.length - new Set(mainIds.map(proteinIng)).size) * 60;
     prefPenalty += (lightIds.length - new Set(lightIds.map(proteinIng)).size) * 20;
-    return { meals, portions, scale, avg, cost: opt.total, subset: opt.subset, prepMin, freezePenalty, prefPenalty, mainIds, lightIds };
+    // Meals the user rated 👍 are preferred.
+    const liked = (rid) => profile.ratings && profile.ratings[rid] === 1;
+    prefPenalty -= mainIds.filter(liked).length * 70 + lightIds.filter(liked).length * 15;
+    return { meals, portions, scale, avg, cost: opt.total, subset: opt.subset, prepMin, freezePenalty, prefPenalty, mainIds, lightIds, start };
   }
 
   // Rough value of one base serving: kr per 1,000 kcal, penalised when protein density is below target.
@@ -379,7 +426,10 @@ const Engine = (() => {
     const nLight = slots.length - nMain;
     const variety = opts.variety || profile.variety;
     const k = kCounts(variety, nMain, nLight);
-    const mains = eligible(profile, 'main');
+    // Meals the user built and liked count too, even if they aren't in the library.
+    const likedMixes = Object.keys(profile.ratings || {}).filter((id) => id.startsWith('mix:') && profile.ratings[id] === 1 && !RECIPE_BASE[id])
+      .map((id) => RECIPE[id]).filter((r) => r && recipeAllowed(r, profile));
+    const mains = [...eligible(profile, 'main'), ...likedMixes];
     const lights = eligible(profile, 'light');
     const prices = priceTable(shopDate, opts.noData);
     const subsets = storeSubsets(profile.stores, profile.storeCap);
@@ -412,7 +462,8 @@ const Engine = (() => {
         const ranked = list.map((r) => [r.id, valueScore(r, profile, prices)]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
         const rest = ranked.slice(top);
         for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
-        return [...ranked.slice(0, top), ...rest.slice(0, extra)];
+        const liked = list.filter((r) => profile.ratings && profile.ratings[r.id] === 1).map((r) => r.id);
+        return [...new Set([...liked, ...ranked.slice(0, top), ...rest.slice(0, extra)])];
       };
       const mainSets = opts.fixedMains ? [opts.fixedMains] : combinations(pool(mains, 16, 8), k.main);
       const lightSets = combinations(pool(lights, 8, 4), k.light);
@@ -440,7 +491,8 @@ const Engine = (() => {
     candidates.sort((x, y) => x.score - y.score);
     const best = candidates[0];
 
-    const kShort = (profile.kcal - best.avg.kcal) / profile.kcal;
+    const kAvg = avgTarget(profile, start);
+    const kShort = (kAvg - best.avg.kcal) / kAvg;
     const pShort = (profile.protein - best.avg.p) / profile.protein;
 
     // Macros can't be reached with these foods, regardless of budget.
@@ -479,15 +531,25 @@ const Engine = (() => {
 
   // ---------- Meal prep ----------
 
-  function prepPlan(plan) {
+  // Fridge-only mode ("two") splits prep into session 0 (Mon–Wed, prepped the day before the plan)
+  // and session 1 (Thu–Sun, prepped Wednesday evening). With no session given, returns week totals.
+  function prepPlan(plan, session = null) {
+    const two = plan.profile.prepMode === 'two';
+    if (two && session === null) {
+      const a = prepPlan(plan, 0), b = prepPlan(plan, 1);
+      const recipes = [...a.recipes];
+      b.recipes.forEach((r) => { const x = recipes.find((y) => y.rid === r.rid); if (x) x.count += r.count; else recipes.push({ ...r }); });
+      return { ...a, two: true, sessions: [a, b], recipes, minutes: a.minutes + b.minutes, containers: a.containers + b.containers, empty: a.empty && b.empty };
+    }
+    const range = !two ? [0, 6] : session === 0 ? [0, 2] : [3, 6];
     const cookedIds = [];
     const servings = {};
     plan.meals.forEach((day, d) => day.forEach((rid, si) => {
-      if (RECIPE[rid].kind !== 'main') return;
+      if (RECIPE[rid].kind !== 'main' || d < range[0] || d > range[1]) return;
       if (!servings[rid]) { servings[rid] = []; cookedIds.push(rid); }
       servings[rid].push({ d, slot: plan.slots[si], date: addDays(plan.start, d) });
     }));
-    if (!cookedIds.length) return { empty: true, steps: [], portioning: [], recipes: [], containers: 0, minutes: 0, totals: [] };
+    if (!cookedIds.length) return { empty: true, steps: [], portioning: [], recipes: [], containers: 0, minutes: 0, totals: [], session, range };
 
     const batch = (rid) => servingIngs(plan, rid).map(([id, g, role]) => [id, g * servings[rid].length, role]);
     const sumBy = (list) => {
@@ -507,7 +569,7 @@ const Engine = (() => {
       steps.push({
         title: carbs.length > 1 ? 'Start the carbs' : `Start the ${ING[carbs[0][0]].name.split(' ').pop().toLowerCase()}`,
         qty: carbs.map(([id, g]) => qtyLine(id, g)),
-        how: carbs.map(([id]) => CARB_COOK[id].how).join(' '),
+        how: carbs.map(([id]) => tx(CARB_COOK[id], 'how')).join(' '),
         wait: Math.max(...carbs.map(([id]) => CARB_COOK[id].min)),
         waitLabel: carbs.length > 1 ? 'Carbs' : ING[carbs[0][0]].name.split(' ').pop(),
         recipes: recipesIn((rid) => batch(rid).some(([id, , role]) => role === 'c')),
@@ -531,7 +593,7 @@ const Engine = (() => {
       steps.push({
         title: pid === 'lentils' ? 'Start the dal' : pid === 'tuna' ? 'Open the tuna' : `Cook the ${noun}`,
         subtitle: proteinCount[pid] > 1 ? `For ${r.name}` : null,
-        qty: p.map(([id, g]) => qtyLine(id, g)), how: r.prepProtein, wait: r.wait || 0, waitLabel: noun[0].toUpperCase() + noun.slice(1), recipes: [r.name],
+        qty: p.map(([id, g]) => qtyLine(id, g)), how: tx(r, 'prepProtein'), wait: r.wait || 0, waitLabel: noun[0].toUpperCase() + noun.slice(1), recipes: [r.name],
       });
     });
 
@@ -544,7 +606,7 @@ const Engine = (() => {
       const r = RECIPE[rid];
       if (!r.finish) return;
       const rest = batch(rid).filter(([id, , role]) => role !== 'p' && role !== 'c' && !ING[id].pantry && !ING[id].chop && !(ING[id].frozenVeg && r.steamVeg));
-      steps.push({ title: `Finish the ${r.name.replace(/ with .*/, '').toLowerCase()}`, qty: rest.map(([id, g]) => qtyLine(id, g)), how: r.finish, wait: r.finishWait || 0, waitLabel: 'Simmer', recipes: [r.name] });
+      steps.push({ title: `Finish: ${r.name}`, qty: rest.map(([id, g]) => qtyLine(id, g)), how: tx(r, 'finish'), wait: r.finishWait || 0, waitLabel: 'Simmer', recipes: [r.name] });
     });
 
     steps.push({ title: 'Let everything cool', qty: [], how: 'Spread it out for 10–15 minutes before portioning. Warm food in sealed containers spoils faster.', wait: 10, waitLabel: 'Cooling', recipes: [] });
@@ -559,8 +621,8 @@ const Engine = (() => {
       const initials = r.name.split(/[\s,&]+/).filter((w) => /^[A-Z]/.test(w)).map((w) => w[0]).join('').slice(0, 3);
       return {
         rid, name: r.name, from, to: n - 1, count: sv.length, parts: parts.map(([l, g]) => [l, round5(g)]),
-        fridge: [...new Set(sv.filter((s) => s.d <= 2).map((s) => weekday(s.date)))],
-        freezer: [...new Set(sv.filter((s) => s.d > 2).map((s) => weekday(s.date)))],
+        fridge: [...new Set(sv.filter((s) => two || s.d <= 2).map((s) => weekday(s.date)))],
+        freezer: [...new Set(sv.filter((s) => !two && s.d > 2).map((s) => weekday(s.date)))],
         freezes: r.freezes, label: `${initials} · ${weekday(sv[sv.length - 1].date)}`, firstLabel: `${initials} · ${weekday(sv[0].date)}`,
       };
     });
@@ -572,7 +634,7 @@ const Engine = (() => {
     const vegTotal = cookedIds.flatMap((rid) => batch(rid).filter(([id, , role]) => role === 'v')).reduce((s, [, g]) => s + g, 0);
     return {
       recipes: cookedIds.map((rid) => ({ rid, name: RECIPE[rid].name, count: servings[rid].length, slots: [...new Set(servings[rid].map((s) => SLOT_LABEL[s.slot]))], days: servings[rid].map((s) => s.date) })),
-      steps, portioning, containers, minutes, totals, vegTotal,
+      steps, portioning, containers, minutes, totals, vegTotal, session, range,
       kit: kitList(cookedIds, containers, usesOven),
     };
   }
@@ -585,6 +647,27 @@ const Engine = (() => {
     if (oven) kit.push('baking trays');
     kit.push(`${containers} containers`);
     return kit;
+  }
+
+  // ---------- Store trade-off ----------
+
+  // Every way to split the list across the user's stores (within their store cap, or the current count
+  // if higher), with its estimated total. Sorted cheapest first.
+  function storeChoices(plan, today) {
+    const pr = plan.profile;
+    const cap = Math.max(pr.storeCap || 1, plan.subset.length);
+    const seen = new Set();
+    const out = [];
+    storeSubsets(pr.stores, cap).forEach((sub) => {
+      const trial = { ...plan, subset: sub };
+      const sl = shoppingList(trial, today);
+      const used = sl.stores.map((x) => x.id);
+      const key = used.slice().sort().join();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ subset: used, total: sl.total });
+    });
+    return out.sort((a, b) => a.total - b.total);
   }
 
   // ---------- Replacement ----------
@@ -631,7 +714,8 @@ const Engine = (() => {
     const next = withSwap(plan, rid, newId, scope);
     const avg = weekAvg(next);
     const cost = shoppingList(next, today).total - ctx.shop;
-    const onTarget = Math.abs(avg.kcal - pr.kcal) <= pr.kcal * 0.05 && avg.p >= pr.protein * 0.95;
+    const kt = avgTarget(pr, plan.start);
+    const onTarget = Math.abs(avg.kcal - kt) <= kt * 0.05 && avg.p >= pr.protein * 0.95;
     const dP = avg.p - ctx.avg.p;
     const dCooked = cookedCount(next) - ctx.cooked;
     let prep = 'No prep change';
@@ -677,7 +761,7 @@ const Engine = (() => {
 
   return {
     generate, eligible, recipeAllowed, ingBlockedBy, allowedProteins, mostLimitingFilter,
-    servingIngs, mealMacros, dayTotals, weekAvg, dayStatus,
+    servingIngs, mealMacros, dayTotals, weekAvg, dayStatus, dayTarget, avgTarget, isTrainingDay, lightMult, storeChoices,
     shoppingList, prepPlan, alternatives, evaluateSwap, withSwap, reconcileShopping, cookedCount, priceTable,
   };
 })();

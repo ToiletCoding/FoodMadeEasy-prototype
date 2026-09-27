@@ -78,7 +78,8 @@ function render(opts = {}) {
       <button class="btn text ${d.danger ? 'danger' : 'strong'}" data-act="dialogOk">${esc(d.ok || 'OK')}</button></div></div>`;
   }
   html += '<div class="toasts" id="toasts"></div>';
-  root.innerHTML = html;
+  root.innerHTML = i18nHtml(html);
+  document.documentElement.lang = lang();
   renderToasts();
 
   const nb = root.querySelector('.screen > .body');
@@ -99,7 +100,7 @@ function render(opts = {}) {
 function renderToasts() {
   const el = document.getElementById('toasts');
   if (!el) return;
-  el.innerHTML = U.toasts.map((t) => `<div class="toast ${t.kind}"><span>${t.msg}</span>${t.undo ? `<button class="toast-undo" data-act="toastUndo" data-id="${t.id}">Undo</button>` : ''}</div>`).join('');
+  el.innerHTML = i18nHtml(U.toasts.map((t) => `<div class="toast ${t.kind}"><span>${t.msg}</span>${t.undo ? `<button class="toast-undo" data-act="toastUndo" data-id="${t.id}">Undo</button>` : ''}</div>`).join(''));
 }
 
 // ---------- Events ----------
@@ -201,7 +202,8 @@ function tabbar(active) {
 }
 
 function screen({ top = '', body = '', footer = '', tab = null, cls = '' }) {
-  return `<div class="screen ${cls} ${tab ? 'has-tabs' : ''}">${top}${offlineBanner()}<main class="body">${body}</main>${footer ? `<footer class="cta">${footer}</footer>` : ''}${tab ? tabbar(tab) : ''}</div>`;
+  const fab = tab ? `<button class="fab" data-act="openFeedback" aria-label="Send feedback">💬</button>` : '';
+  return `<div class="screen ${cls} ${tab ? 'has-tabs' : ''}">${top}${offlineBanner()}<main class="body">${body}</main>${footer ? `<footer class="cta">${footer}</footer>` : ''}${fab}${tab ? tabbar(tab) : ''}</div>`;
 }
 
 function offlineBanner() {

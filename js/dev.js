@@ -16,7 +16,7 @@ function devControls() {
 function renderDevPanel() {
   const el = document.getElementById('dev');
   if (!el) return;
-  el.innerHTML = `<h2>Prototype tools</h2><p class="dev-note">FoodMadeEasy V1 clickable prototype. All prices, offers and accounts are fake and live only in this browser.</p>
+  el.innerHTML = i18nHtml(`<h2>Prototype tools</h2><p class="dev-note">FoodMadeEasy V1 clickable prototype. All prices, offers and accounts are fake and live only in this browser.</p>
     <div class="dev-box">${devControls()}</div>
     <h3>Jump to a screen</h3>
     <div class="dev-links">
@@ -27,7 +27,7 @@ function renderDevPanel() {
       <button data-act="devGo" data-v="prep">Meal prep</button>
       <button data-act="devGo" data-v="profile">Profile</button>
     </div>
-    <p class="dev-note">Tip: after accepting a plan, use “+1 day” to walk through the week (fridge reminders, week ending, next week).</p>`;
+    <p class="dev-note">Tip: after accepting a plan, use “+1 day” to walk through the week (fridge reminders, week ending, next week).</p>`);
 }
 
 document.addEventListener('change', (ev) => {

@@ -28,7 +28,7 @@ SCREENS.prep = ({ view }) => {
   if (!p) {
     return screen({ cls: 'prep', top: closeTop(), body: `<div class="pad">${empty({ art: '🥡', title: 'Nothing to prep yet', text: "Create a weekly plan first. We'll turn it into a step-by-step session.", action: btn('Build My Week', 'buildWeek') })}</div>` });
   }
-  const prep = Engine.prepPlan(p);
+  const prep = Engine.prepPlan(p, curSession(p));
   if (prep.empty) {
     return screen({ cls: 'prep', top: closeTop(), body: `<div class="pad">${empty({ art: '🥣', title: 'No cooking needed this week', text: 'All your meals are 5-minute assemble-and-eat.', action: btn('View Plan', 'tab', { data: { tab: 'plan' } }) })}</div>` });
   }
@@ -45,16 +45,19 @@ SCREENS.prep.after = () => {
 function prepOverview(p, prep, N, closeTop) {
   const sl = Engine.shoppingList(p, today());
   const inProgress = p.prep.step >= 1 && !p.prep.done;
-  const cta = p.prep.done ? '' : inProgress ? btn(`Continue · Step ${p.prep.step} of ${N}`, 'prepContinue') : btn('Start Meal Prep', 'prepStart');
+  const two = twoSessions(p);
+  const s1 = two && p.prep.session === 1;
+  const cta = allPrepped(p) ? '' : inProgress ? btn(`Continue · Step ${p.prep.step} of ${N}`, 'prepContinue') : btn('Start Meal Prep', 'prepStart');
   return screen({
     cls: 'prep',
     top: closeTop(),
     body: `<div class="pad">
-      <h1 class="q">${weekdayLong(p.shopDate)} prep</h1>
-      <p class="helper">We've combined your recipes so you cook each thing once.</p>
+      <h1 class="q">${s1 ? `${weekdayLong(midweekDate(p))} prep` : `${weekdayLong(p.shopDate)} prep`}</h1>
+      <p class="helper">${two ? `Session ${s1 ? 2 : 1} of 2: meals for ${s1 ? `${weekday(addDays(p.start, 3))}–${weekday(planEnd(p))}` : `${weekday(p.start)}–${weekday(addDays(p.start, 2))}`}. ` : ''}We've combined your recipes so you cook each thing once.</p>
       <div class="prep-summary"><span><b>${prep.recipes.length}</b> recipe${prep.recipes.length > 1 ? 's' : ''}</span><span><b>${prep.containers}</b> containers</span><span><b>${fmtDuration(prep.minutes)}</b></span></div>
-      ${p.prep.done ? notice(`✓ Prepped ${fmtDay(p.prep.doneDate)}`, { kind: 'good', icon: 'check' }) : ''}
-      ${!p.prep.done && sl.done < sl.count ? notice("You haven't finished shopping. You can still start.", { kind: 'warn' }) : ''}
+      ${allPrepped(p) ? notice(`✓ Prepped ${fmtDay(p.prep.doneDate)}`, { kind: 'good', icon: 'check' }) : ''}
+      ${s1 && !inProgress ? notice(`✓ First session done ${p.prep.firstDone ? fmtDay(p.prep.firstDone) : ''}. Check the use-by dates on the meat you bought for today.`, { kind: 'good', icon: 'check' }) : ''}
+      ${!anyPrepped(p) && !p.prep.done && sl.done < sl.count ? notice("You haven't finished shopping. You can still start.", { kind: 'warn' }) : ''}
       <div class="section-label">Recipes being prepped</div>
       <div class="card list-card">${prep.recipes.map((r) => `<button class="meal-row" data-act="openRecipe" data-rid="${r.rid}" data-which="plan">${thumb(r.rid, 40)}<span class="grow"><b>${esc(r.name)}</b><small>${r.count} container${r.count > 1 ? 's' : ''} · ${r.slots.join(' & ')} ${r.days.length === 7 ? 'Mon–Sun' : r.days.map(weekday).join(', ')}</small></span>${icon('chev-right')}</button>`).join('')}</div>
       <div class="section-label">What you'll cook</div>
@@ -64,7 +67,7 @@ function prepOverview(p, prep, N, closeTop) {
       <div class="chips static">${prep.kit.map((k) => `<span class="tag">${k}</span>`).join('')}</div>
       ${p.slots.some((s) => !MAIN_SLOTS.includes(s)) ? '<p class="fine">Breakfasts and snacks are 5-minute assemble-and-eat meals. Make them on the day.</p>' : ''}
       ${inProgress ? '<p class="center"><button class="link" data-act="prepRestart">Restart from step 1</button></p>' : ''}
-      ${p.prep.done ? '<p class="center"><button class="link" data-act="prepRestart">Prep again</button></p>' : ''}
+      ${allPrepped(p) ? '<p class="center"><button class="link" data-act="prepRestart">Prep again</button></p>' : ''}
     </div>`,
     footer: cta,
   });
@@ -73,13 +76,13 @@ function prepOverview(p, prep, N, closeTop) {
 ACT.prepClose = () => closePrep();
 ACT.prepStart = () => {
   const p = acct().plan;
-  p.prep = { step: 1, started: true, startedAt: Date.now(), done: null, timers: [] };
+  p.prep = { ...p.prep, step: 1, started: true, startedAt: Date.now(), done: null, timers: [] };
   go('prep', { view: 'steps' });
 };
 ACT.prepContinue = () => { go('prep', { view: 'steps' }); toast('Picked up where you left off'); };
 ACT.prepRestart = () => {
   const p = acct().plan;
-  p.prep = { step: 0, started: false, startedAt: null, done: null, timers: [] };
+  p.prep = { step: 0, started: false, startedAt: null, done: null, timers: [], session: twoSessions(p) ? (p.prep.session || 0) : undefined, firstDone: p.prep.firstDone };
   render();
 };
 
@@ -124,7 +127,7 @@ function prepStep(p, prep, N, closeTop) {
       <div class="card storage">
         ${pr.fridge.length ? `<div>${icon('fridge')} <span>Fridge: <b>${pr.fridge.join(', ')}</b></span></div>` : ''}
         ${pr.freezer.length ? `<div>${icon('snow')} <span>Freezer: <b>${days(pr.freezer)}</b></span></div>` : ''}
-        <div class="muted small">Label the lids, e.g. “${esc(pr.firstLabel)}”</div>
+        <div class="muted small"><span>Label the lids, e.g.</span> <b>“${esc(pr.firstLabel)}”</b></div>
       </div>
       ${!pr.freezes && pr.freezer.length ? notice("This one doesn't freeze well. Keep all of it in the fridge and eat it in the first half of the week if you can.", { kind: 'warn' }) : ''}
     </div>`;
@@ -141,14 +144,21 @@ function prepStep(p, prep, N, closeTop) {
 ACT.showFor = (d) => { U.showFor = Number(d.k); render(); };
 ACT.prepDone = () => {
   const p = acct().plan;
-  const prep = Engine.prepPlan(p);
+  const prep = Engine.prepPlan(p, curSession(p));
   haptic(12);
   U.showFor = null;
   if (p.prep.step >= totalPrepSteps(prep)) {
-    p.prep.done = true;
-    p.prep.doneDate = today();
-    p.prep.finishedAt = Date.now();
-    p.prep.timers = [];
+    const elapsed = p.prep.startedAt ? (Date.now() - p.prep.startedAt) / 60000 : null;
+    U.prepDoneInfo = { containers: prep.containers, minutes: prep.minutes, elapsed, first: twoSessions(p) && (p.prep.session || 0) === 0 };
+    if (U.prepDoneInfo.first) {
+      // First of two sessions: the second one (Thu–Sun meals) is next, on Wednesday.
+      p.prep = { step: 0, session: 1, started: false, startedAt: null, done: null, timers: [], firstDone: today() };
+    } else {
+      p.prep.done = true;
+      p.prep.doneDate = today();
+      p.prep.finishedAt = Date.now();
+      p.prep.timers = [];
+    }
     releaseWakeLock();
     go('prep', { view: 'complete' });
     return;
@@ -188,14 +198,17 @@ function startTimerTicker() {
 // ---------- S30 Prep Complete ----------
 
 function prepComplete(p, prep) {
-  const elapsed = p.prep.finishedAt && p.prep.startedAt ? (p.prep.finishedAt - p.prep.startedAt) / 60000 : null;
-  const time = elapsed && elapsed > 5 && elapsed < 240 ? fmtDuration(elapsed) : fmtDuration(prep.minutes);
+  const info = U.prepDoneInfo || { containers: prep.containers, minutes: prep.minutes, elapsed: null, first: false };
+  const elapsed = info.elapsed;
+  const time = elapsed && elapsed > 5 && elapsed < 240 ? fmtDuration(elapsed) : fmtDuration(info.minutes);
   const firstMain = p.meals[0].findIndex((rid) => RECIPE[rid].kind === 'main');
-  const next = firstMain >= 0 ? `Your ${weekdayLong(p.start)} ${SLOT_LABEL[p.slots[firstMain]].toLowerCase()} is in the fridge.` : '';
+  const next = info.first
+    ? `Next prep: ${weekdayLong(midweekDate(p))} evening, for ${weekday(addDays(p.start, 3))}–${weekday(planEnd(p))}.`
+    : !twoSessions(p) && firstMain >= 0 ? `Your ${weekdayLong(p.start)} ${SLOT_LABEL[p.slots[firstMain]].toLowerCase()} is in the fridge.` : 'Everything for the rest of the week is in the fridge.';
   return screen({
     cls: 'prep complete',
-    body: `<div class="pad center-col celebrate"><div class="confetti">🎉</div><h1 class="display">Meal prep done</h1>
-      <p class="lead"><b>${prep.containers} meals prepared</b> · ${time}</p>
+    body: `<div class="pad center-col celebrate"><div class="confetti">🎉</div><h1 class="display">${info.first ? 'First prep done' : 'Meal prep done'}</h1>
+      <p class="lead"><b>${info.containers} meals prepared</b> · ${time}</p>
       <p class="muted">Tonight: nothing. ${next}</p></div>`,
     footer: btn('Finish', 'prepFinish'),
   });

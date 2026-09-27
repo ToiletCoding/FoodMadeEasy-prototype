@@ -108,7 +108,9 @@ SCREENS.ready = () => {
   const b = budgetStatus(sl.total, pr.budget);
   const counts = {};
   p.meals.flat().forEach((r) => { counts[r] = (counts[r] || 0) + 1; });
-  const kOff = Math.abs(avg.kcal - pr.kcal) > pr.kcal * 0.05;
+  const kTarget = Engine.avgTarget(pr, p.start);
+  const kOff = Math.abs(avg.kcal - kTarget) > kTarget * 0.05;
+  const two = pr.prepMode === 'two';
   const stat = (big, small, cls = '') => `<div class="stat ${cls}"><b>${big}</b><small>${small}</small></div>`;
   const isNext = a.plan && p.start > a.plan.start;
   return screen({
@@ -117,12 +119,13 @@ SCREENS.ready = () => {
     body: `<div class="pad">
       <div class="ready-head"><div class="burst">✓</div><h1 class="display">${isNext ? 'Next week is ready' : 'Your week is ready'}</h1><div class="sub">${fmtDay(p.start)} – ${fmtDay(addDays(p.start, 6))}</div></div>
       <div class="stat-grid">
-        ${stat(`${fmtNum(avg.kcal)}`, `kcal/day · target ${fmtNum(pr.kcal)}`, kOff ? 'warn' : '')}
+        ${stat(`${fmtNum(avg.kcal)}`, pr.restKcal ? `avg kcal/day · ${fmtNum(pr.kcal)} training, ${fmtNum(pr.restKcal)} rest` : `kcal/day · target ${fmtNum(pr.kcal)}`, kOff ? 'warn' : '')}
         ${stat(`${Math.round(avg.p)} g`, `protein/day · target ${pr.protein}`, avg.p < pr.protein * 0.95 ? 'warn' : '')}
         ${stat(fmtKr(sl.total), 'estimated total')}
         ${stat(`${fmtNum(Math.abs(pr.budget - sl.total))} kr`, over ? 'over budget' : 'under budget', over ? 'warn' : 'good')}
         ${stat(`${mainServings(p)} meals`, 'prepped for the week')}
-        ${stat(prep.minutes ? fmtDuration(prep.minutes) : '—', `${weekday(p.shopDate)} prep`)}
+        ${two ? stat(`${fmtDuration(prep.sessions[0].minutes)} + ${fmtDuration(prep.sessions[1].minutes).replace('~', '')}`, `${weekday(p.shopDate)} + ${weekday(addDays(p.start, 2))} prep`)
+          : stat(prep.minutes ? fmtDuration(prep.minutes) : '—', `${weekday(p.shopDate)} prep`)}
       </div>
       ${over ? notice(`${p.picked ? 'Your picked meals come to a bit more than your budget. Swap one for something cheaper, or raise the budget.'
         : pr.storeCap < pr.stores.length ? `Closest we could get with your stores. Try up to ${Math.min(3, pr.stores.length)} stores a week, or a bigger budget.`
@@ -169,6 +172,13 @@ function greeting() {
 
 function freezerTip(plan) {
   const t = tomorrow();
+  if (twoSessions(plan)) {
+    if (!allPrepped(plan)) {
+      const s1 = Engine.prepPlan(plan, 1);
+      return { title: `${weekdayLong(midweekDate(plan))}: mid-week prep`, text: `Cook ${s1.containers} meals for ${weekday(addDays(plan.start, 3))}–${weekday(planEnd(plan))}, about ${fmtDuration(s1.minutes).replace('~', '')}. Check the use-by dates on fresh meat.` };
+    }
+    return { title: 'All set', text: 'Everything for the rest of the week is in the fridge.' };
+  }
   if (!inPlan(plan, t)) return null;
   const d = diffDays(plan.start, t);
   if (d < 3) return { title: 'Nothing to move tonight', text: `${weekdayLong(t)}'s meals are already in the fridge.` };
@@ -184,7 +194,7 @@ SCREENS.home = () => {
   const p = a.plan;
   const name = (S.accounts[S.user.email] || {}).name || '';
   const t = today();
-  const header = `<div class="home-head"><div><div class="muted small">${greeting()}${name ? `, ${esc(name)}` : ''}</div>
+  const header = `<div class="home-head"><div><div class="muted small"><span>${greeting()}</span>${name ? `<span>, </span><span>${esc(name)}</span>` : ''}</div>
       <h1>${p ? `Week of ${fmtRange(p.start)}` : a.draft ? `Week of ${fmtRange(a.draft.start)}` : 'Your food week'}</h1></div>
       <button class="avatar" data-act="tab" data-tab="profile" aria-label="Profile">${esc((name || S.user.email)[0].toUpperCase())}</button></div>`;
 
@@ -202,7 +212,8 @@ SCREENS.home = () => {
   }
 
   let sl = null, prep = null;
-  if (p) { sl = Engine.shoppingList(p, t); prep = Engine.prepPlan(p); }
+  if (p) { sl = Engine.shoppingList(p, t); prep = Engine.prepPlan(p, curSession(p)); }
+  const midweek = p && twoSessions(p) && p.prep.session === 1;
   let card = '';
   const more = (st === 'H3' || st === 'H4') ? `<button class="icon-btn card-more" data-act="openSheetAct" data-sheet="homeMore" aria-label="More">${icon('dots')}</button>` : '';
   if (st === 'H1') {
@@ -214,14 +225,16 @@ SCREENS.home = () => {
   } else if (st === 'H4') {
     card = `<div class="eyebrow">Shopping</div><h2>Shopping in progress</h2><p>${sl.done} of ${sl.count} items</p>${progress(sl.done / sl.count)}${btn('Continue Shopping', 'tab', { data: { tab: 'shop' } })}`;
   } else if (st === 'H5') {
-    card = `<div class="eyebrow">Groceries done ✓</div><h2>Prep ${prep.containers} meals in ${fmtDuration(prep.minutes)}</h2><p>${prep.recipes.length} recipe${prep.recipes.length > 1 ? 's' : ''}, one session.</p>${btn('Start Meal Prep', 'openPrep')}`;
+    card = midweek
+      ? `<div class="eyebrow">Mid-week prep</div><h2>Prep ${prep.containers} meals for ${weekday(addDays(p.start, 3))}–${weekday(planEnd(p))}</h2><p>About ${fmtDuration(prep.minutes).replace('~', '')}. Check the use-by dates on fresh meat.</p>${btn('Start Meal Prep', 'openPrep')}`
+      : `<div class="eyebrow">Groceries done ✓</div><h2>Prep ${prep.containers} meals in ${fmtDuration(prep.minutes)}</h2><p>${prep.recipes.length} recipe${prep.recipes.length > 1 ? 's' : ''}${twoSessions(p) ? ` for ${weekday(p.start)}–${weekday(addDays(p.start, 2))}. The rest on ${weekdayLong(midweekDate(p))}.` : ', one session.'}</p>${btn('Start Meal Prep', 'openPrep')}`;
   } else if (st === 'H6') {
     card = `<div class="eyebrow">Meal prep paused</div><h2>Step ${Math.min(p.prep.step, totalPrepSteps(prep))} of ${totalPrepSteps(prep)}</h2>${progress(p.prep.step / totalPrepSteps(prep))}${btn('Continue Meal Prep', 'openPrep')}`;
   } else if (st === 'H8') {
-    card = `<div class="eyebrow">Week ending</div><h2>Your week ends ${weekdayLong(planEnd(p))}.</h2><p>Next week's offers are in.</p>${btn('Plan Next Week', 'openNextWeek', { disabled: !online() })}`;
+    card = `<div class="eyebrow">Week ending</div><h2>Your week ends ${weekdayLong(planEnd(p))}.</h2><p>Next week's offers are in.</p>${btn('Plan Next Week', 'openNextWeek', { disabled: !online() })}${btn("Rate this week's meals", 'openRateWeek', { kind: 'text' })}`;
   }
   const tip = st === 'H7' ? freezerTip(p) : null;
-  const cardHtml = card ? `<div class="card action-card">${more}${card}</div>` : tip ? `<div class="card tip-card">${icon(tip.title === 'Tonight' ? 'snow' : 'fridge')}<div><b>${tip.title}</b><p>${tip.text}</p></div></div>` : '';
+  const cardHtml = card ? `<div class="card action-card">${more}${card}</div>` : tip ? `<div class="card tip-card">${icon(tip.title === 'Tonight' ? 'snow' : tip.title === 'All set' || tip.title.startsWith('Nothing') ? 'fridge' : 'clock')}<div><b>${tip.title}</b><p>${tip.text}</p></div></div>` : '';
 
   // Today's meals (from H3 on).
   let todayHtml = '';
@@ -231,10 +244,10 @@ SCREENS.home = () => {
     const di = upcoming ? 0 : diffDays(tp.start, t);
     const tot = Engine.dayTotals(tp, di);
     const label = upcoming ? (diffDays(t, tp.start) === 1 ? 'Tomorrow' : `Starts ${fmtDay(tp.start)}`) : 'Today';
-    const prepped = tp.prep.done;
+    const prepped = mealPrepped(tp, di);
     todayHtml = `<div class="section-head"><h3>${label}</h3><span class="muted small">${fmtNum(tot.kcal)} kcal · ${Math.round(tot.p)}P</span></div>
       <div class="card list-card">${tp.meals[di].map((rid, si) => {
-        const m = Engine.mealMacros(tp, rid);
+        const m = Engine.mealMacros(tp, rid, di);
         const isMain = RECIPE[rid].kind === 'main';
         const badge = isMain ? (prepped ? `<span class="badge">${icon('fridge')}Fridge</span>` : '') : '<span class="badge soft">5 min</span>';
         return `<button class="meal-row" data-act="openRecipe" data-rid="${rid}" data-which="${tp === a.plan ? 'plan' : 'archive'}">
@@ -251,7 +264,7 @@ SCREENS.home = () => {
       <div class="wc-row"><span><b>${fmtKr(sl.total)}</b><small>estimated</small></span><span><b class="${b.cls}">${b.text.replace(' budget', '')}</b><small>budget</small></span></div>
       <div class="wc-foot">${p.meals.flat().length} planned meals ${icon('chev-right')}</div></button>`;
     const shopState = sl.done >= sl.count && sl.count ? 'done' : sl.done ? 'half' : 'todo';
-    const prepState = p.prep.done ? 'done' : p.prep.step ? 'half' : 'todo';
+    const prepState = allPrepped(p) ? 'done' : p.prep.step || anyPrepped(p) ? 'half' : 'todo';
     const dot = (s) => `<i class="ps ${s}">${s === 'done' ? icon('check') : ''}</i>`;
     summary += `<div class="progress-strip">
       <button data-act="tab" data-tab="plan">${dot('done')}Plan</button><span class="ps-line"></span>
@@ -299,17 +312,18 @@ SCREENS.plan = ({ which }) => {
 
   let fix = '';
   if (!status.ok) {
-    const light = p.meals[d].map((rid, si) => [rid, si]).sort((x, y) => Engine.mealMacros(p, x[0]).kcal - Engine.mealMacros(p, y[0]).kcal)[0];
-    fix = `<div class="fix-tip">${weekdayLong(addDays(p.start, d))} is ${status.dk < 0 ? `${fmtNum(-status.dk)} kcal under` : status.dk > 0 && Math.abs(status.dk) > p.profile.kcal * 0.05 ? `${fmtNum(status.dk)} kcal over` : `${Math.round(-status.dp)} g protein short`}.
+    const light = p.meals[d].map((rid, si) => [rid, si]).sort((x, y) => Engine.mealMacros(p, x[0], d).kcal - Engine.mealMacros(p, y[0], d).kcal)[0];
+    fix = `<div class="fix-tip">${weekdayLong(addDays(p.start, d))} is ${status.dk < 0 ? `${fmtNum(-status.dk)} kcal under` : status.dk > 0 && Math.abs(status.dk) > status.target * 0.05 ? `${fmtNum(status.dk)} kcal over` : `${Math.round(-status.dp)} g protein short`}.
       ${archive ? '' : `<button class="link" data-act="openReplace" data-rid="${light[0]}" data-d="${d}" data-si="${light[1]}" data-which="${which}">Replace ${SLOT_LABEL[p.slots[light[1]]].toLowerCase()}</button>`}</div>`;
   }
 
   const cards = p.meals[d].map((rid, si) => {
     const r = RECIPE[rid];
-    const m = Engine.mealMacros(p, rid);
+    const m = Engine.mealMacros(p, rid, d);
     const isMain = r.kind === 'main';
-    const badge = isMain ? (p.prep.done ? '<span class="badge">✓ Prepped</span>' : `<span class="badge">Prep ${weekday(p.shopDate)}</span>`) : `<span class="badge soft">${r.minutes} min</span>`;
-    const pm = (p.userPortion && p.userPortion[rid]) || 1;
+    const prepDay = twoSessions(p) && d > 2 ? weekday(midweekDate(p)) : weekday(p.shopDate);
+    const badge = isMain ? (mealPrepped(p, d) ? '<span class="badge">✓ Prepped</span>' : `<span class="badge">Prep ${prepDay}</span>`) : `<span class="badge soft">${r.minutes} min</span>`;
+    const pm = ((p.userPortion && p.userPortion[rid]) || 1) * (isMain ? 1 : Engine.lightMult(p, d));
     return `<div class="meal-card ${U.highlight === rid ? 'flash' : ''}">
       <button class="mc-main" data-act="openRecipe" data-rid="${rid}" data-which="${which}" data-d="${d}" data-si="${si}">
         <span class="slot">${SLOT_LABEL[p.slots[si]]}</span>
@@ -332,11 +346,12 @@ SCREENS.plan = ({ which }) => {
       ${!draft && !archive && a.draft ? `<button class="draft-banner accent" data-act="openReady">Next week's plan is ready to review ${icon('chev-right')}</button>` : ''}
       <div class="summary-strip">${costChip(sl.total, p.profile.budget)}<span class="macro">avg <b>${fmtNum(avg.kcal)} kcal</b> · ${Math.round(avg.p)}P</span></div>
       <div class="pad">
-      ${prep.containers && !draft ? `<button class="card prep-card" data-act="openPrep" ${archive ? 'disabled' : ''}>${icon(p.prep.done ? 'check' : 'clock')}
-        <span class="grow"><b>${p.prep.done ? `Prepped ${fmtDay(p.prep.doneDate || p.shopDate)}` : `${weekdayLong(p.shopDate)} prep`}</b>
-        <small>${prep.recipes.length} recipe${prep.recipes.length > 1 ? 's' : ''} · ${prep.containers} containers · ${fmtDuration(prep.minutes)}</small></span>
+      ${prep.containers && !draft ? `<button class="card prep-card" data-act="openPrep" ${archive ? 'disabled' : ''}>${icon(allPrepped(p) ? 'check' : 'clock')}
+        <span class="grow"><b>${allPrepped(p) ? `Prepped ${fmtDay(p.prep.doneDate || p.shopDate)}` : prep.two ? `${weekdayLong(p.shopDate)} + ${weekdayLong(midweekDate(p))} prep${anyPrepped(p) ? ' · first done' : ''}` : `${weekdayLong(p.shopDate)} prep`}</b>
+        <small>${prep.two ? '2 sessions' : `${prep.recipes.length} recipe${prep.recipes.length > 1 ? 's' : ''}`} · ${prep.containers} containers · ${fmtDuration(prep.minutes)}${prep.two ? ' total' : ''}</small></span>
         <span class="link">View</span></button>` : ''}
       <div class="day-pills">${pills}</div>
+      ${status.training !== null ? `<div class="day-type">${status.training ? 'Training day' : 'Rest day'} · ${fmtNum(status.target)} kcal</div>` : ''}
       <div class="day-total">${macroLine(tot)}<span class="status ${status.ok ? 'good' : 'warn'}">${status.label}</span></div>
       ${fix}
       <div class="meal-list" data-swipe="day">${cards}</div>
@@ -363,6 +378,7 @@ SHEETS.planMenu = () => {
   const a = acct();
   return `<div class="sheet-body menu">
     <button class="menu-row" data-act="openRebuild">Rebuild week<small>Get a new plan for these dates.</small></button>
+    <button class="menu-row" data-act="openRateWeek">Rate this week's meals<small>Liked meals come back more often. Disliked ones never return.</small></button>
     <button class="menu-row" data-act="menuEditPrefs">Edit preferences</button>
     ${a.prevPlan || a.lastPlan ? '<button class="menu-row" data-act="openArchive">Last week<small>Read-only</small></button>' : ''}</div>`;
 };
@@ -407,15 +423,16 @@ SCREENS.recipe = ({ rid, which, d, si, portion, preview }) => {
       <div class="kv"><span>Serving</span><b>${isMain ? '1 container' : '1 serving'} · ${fmtNum(m.g)} g</b></div>
       ${readOnly ? '' : `<div class="section-label" id="portion">Portion</div>
       <div class="seg four">${[0.75, 1, 1.25, 1.5].map((v) => `<button class="${Math.abs(pm - v) < 0.01 ? 'on' : ''}" data-act="pickPortion" data-rid="${rid}" data-v="${v}" data-which="${which}" ${online() ? '' : 'disabled'}>${v * 100}%</button>`).join('')}</div>`}
+      ${readOnly && !archiveRate(which) ? '' : rateRow(rid)}
       <div class="kv"><span>This week</span><b>${servings} serving${servings > 1 ? 's' : ''} · ${slotsUsed.join(' & ')}${dayText ? ` ${dayText}` : ''}${isMain ? ` · Prepped ${weekday(p.shopDate)}` : ''}</b></div>
       <div class="section-head"><h3>Ingredients</h3>
         <div class="seg mini"><button class="${batch ? '' : 'on'}" data-act="batchView" data-v="0">Per serving</button><button class="${batch ? 'on' : ''}" data-act="batchView" data-v="1">This week</button></div></div>
       <div class="card list-card ing-list">${ings.filter(([id]) => !ING[id].pantry || id === 'oil').map(([id, g]) => `<div class="ing-row"><span>${esc(ING[id].name)}</span><b>${ING[id].pantry ? (batch ? `${Math.round(g * servings)} ml` : `${Math.round(g)} ml`) : fmtIngQty(id, batch ? g * servings : g)}${ING[id].dry ? ' dry' : ''}</b></div>`).join('')}
         ${r.ing.some(([id]) => id === 'spices') ? '<div class="ing-row"><span>Salt, pepper & spices</span><b class="muted">to taste</b></div>' : ''}</div>
       <div class="section-head"><h3>How to make it</h3><span class="muted small">${r.minutes} min</span></div>
-      <ol class="steps">${r.steps.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
+      <ol class="steps">${tx(r, 'steps').map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
       ${isMain ? `<div class="section-head"><h3>Storing it</h3></div><p class="body-text">${r.freezes ? 'Fridge 3 days · Freezer 2 months. Thaw overnight in the fridge.' : "Fridge 3 days. This one doesn't freeze well, so it's best early in the week."}</p>` : ''}
-      <p class="fine">${allergens.length ? `Contains: ${allergens.join(', ').toLowerCase()}. ` : ''}Always check product labels. Allergen data may be incomplete.</p>
+      <p class="fine">${allergens.length ? `<span>Contains:</span> ${allergens.map((x) => `<span>${x}</span>`).join(', ')}. ` : ''}<span>Always check product labels. Allergen data may be incomplete.</span></p>
       </div>`,
     footer: preview ? btn('Choose This Meal', 'choosePreview', { data: { rid } })
       : readOnly ? '' : `${btn('Replace Meal', 'openReplace', { data: { rid, d: d ?? '', si: si ?? '', which }, disabled: !online() })}${isMain ? btn('Change the parts', 'openReplace', { kind: 'text', data: { rid, d: d ?? '', si: si ?? '', which, mode: 'build' }, disabled: !online() }) : ''}`,
@@ -439,7 +456,7 @@ SHEETS.portion = ({ rid, v, which }) => {
   const after = Engine.mealMacros(next, rid);
   const cost = Engine.shoppingList(next, today()).total - Engine.shoppingList(p, today()).total;
   const n = p.meals.flat().filter((x) => x === rid).length;
-  const prepped = p.prep.done && RECIPE[rid].kind === 'main';
+  const prepped = anyPrepped(p) && RECIPE[rid].kind === 'main';
   return `<div class="sheet-head"><h2>Make all ${n} servings ${v * 100}%?</h2></div><div class="sheet-body">
     <p class="body-text">${after.kcal >= before.kcal ? 'Adds' : 'Removes'} ~${fmtNum(Math.abs(after.kcal - before.kcal))} kcal · ${Math.round(Math.abs(after.p - before.p))}P per serving and ${cost >= 0 ? '~' + fmtKr(cost) + ' to' : '~' + fmtKr(-cost) + ' from'} your list.</p>
     ${prepped ? notice("You've already prepped this. The change only affects your numbers, not your containers.", { kind: 'warn' }) : ''}
@@ -494,7 +511,7 @@ SHEETS.replace = () => {
   const build = R.mode === 'build';
   const alts = build ? [] : replaceAlts();
   const shopStarted = R.which === 'plan' && Object.keys(p.shop.checked).length > 0;
-  const prepped = R.which === 'plan' && p.prep.done && r.kind === 'main';
+  const prepped = R.which === 'plan' && anyPrepped(p) && r.kind === 'main';
   const oneLabel = `Only ${weekday(addDays(p.start, R.d))} ${SLOT_LABEL[p.slots[R.si]].toLowerCase()}`;
   return `<div class="sheet-head"><h2>Replace ${esc(r.name)}</h2><p class="muted">Everything else in your week stays the same.</p></div>
     <div class="sheet-body">
@@ -592,7 +609,7 @@ SHEETS.rebuild = () => {
   return `<div class="sheet-head"><h2>Rebuild your week?</h2></div><div class="sheet-body">
     <p class="body-text">Your current plan stays active until you choose the new one.</p>
     ${sl.done ? notice(`You've checked off ${sl.done} item${sl.done > 1 ? 's' : ''}. A new plan may need different groceries.`, { kind: 'warn' }) : ''}
-    ${p.prep.done ? notice("You've already prepped this week. Rebuilding is usually best for next week.", { kind: 'warn' }) : ''}
+    ${anyPrepped(p) ? notice("You've already prepped this week. Rebuilding is usually best for next week.", { kind: 'warn' }) : ''}
     </div><div class="sheet-foot">${btn('Rebuild Week', 'doRebuild', { disabled: !online() })}${btn('Pick my own meals instead', 'openMixer', { kind: 'text', data: { origin: 'rebuild', start: p.start } })}${btn('Cancel', 'closeSheet', { kind: 'text' })}</div>`;
 };
 ACT.doRebuild = () => { U.sheet = null; startGeneration({ origin: 'rebuild', seed: 3 + Math.floor(Math.random() * 1000), avoid: [...new Set(acct().plan.meals.flat().filter((r) => RECIPE[r].kind === 'main'))] }); };
@@ -628,4 +645,41 @@ ACT.buildNext = () => {
   const n = U.nextWeek;
   U.sheet = null;
   startGeneration({ origin: 'next', start: n.start, repeat: n.choice === 'repeat' ? { meals: n.src.meals } : null, seed: 5 + Math.floor(Math.random() * 1000) });
+};
+
+// ---------- Meal ratings ----------
+
+function archiveRate(which) { return which === 'archive'; }
+function myRating(rid) { const pr = acct().profile; return (pr.ratings || {})[rid] || 0; }
+
+function rateRow(rid) {
+  const v = myRating(rid);
+  return `<div class="rate-row"><span>Would you eat this again?</span>
+    <button class="rate ${v === 1 ? 'on' : ''}" data-act="rate" data-rid="${rid}" data-v="1" aria-pressed="${v === 1}" aria-label="Yes">👍</button>
+    <button class="rate ${v === -1 ? 'on bad' : ''}" data-act="rate" data-rid="${rid}" data-v="-1" aria-pressed="${v === -1}" aria-label="No">👎</button></div>`;
+}
+
+ACT.rate = (d) => {
+  const pr = acct().profile;
+  pr.ratings = pr.ratings || {};
+  const v = Number(d.v);
+  const prev = pr.ratings[d.rid] || 0;
+  if (prev === v) delete pr.ratings[d.rid]; else pr.ratings[d.rid] = v;
+  render();
+  const plan = acct().plan;
+  const inWeek = plan && plan.meals.flat().includes(d.rid);
+  if (pr.ratings[d.rid] === -1) {
+    toast(inWeek ? "Got it. We won't plan it again. It's still in this week; replace it from the Plan tab." : "Got it. We won't plan it again.", { undo: () => { if (prev) pr.ratings[d.rid] = prev; else delete pr.ratings[d.rid]; render(); } });
+  } else if (pr.ratings[d.rid] === 1) toast("Saved. You'll see it more often.");
+};
+
+ACT.openRateWeek = () => { U.sheet = null; openSheet('rateWeek', { tall: true }); };
+SHEETS.rateWeek = () => {
+  const p = acct().plan || acct().lastPlan;
+  const ids = [...new Set(p.meals.flat())];
+  return `<div class="sheet-head"><h2>How was this week?</h2><p class="muted">Liked meals come back more often. Disliked ones never return.</p></div>
+    <div class="sheet-body"><div class="card list-card">${ids.map((rid) => `<div class="rate-item">${thumb(rid, 40)}<span class="grow">${esc(RECIPE[rid].name)}</span>
+      <button class="rate ${myRating(rid) === 1 ? 'on' : ''}" data-act="rate" data-rid="${rid}" data-v="1" aria-label="Liked">👍</button>
+      <button class="rate ${myRating(rid) === -1 ? 'on bad' : ''}" data-act="rate" data-rid="${rid}" data-v="-1" aria-label="Disliked">👎</button></div>`).join('')}</div></div>
+    <div class="sheet-foot">${btn('Done', 'closeSheet')}</div>`;
 };

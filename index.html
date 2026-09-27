@@ -23,6 +23,8 @@
   <script src="js/data.js"></script>
   <script src="js/offers.js"></script>
   <script src="js/mix.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/i18n-da.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/state.js"></script>
   <script src="js/ui.js"></script>
@@ -35,7 +37,8 @@
   <script src="js/dev.js"></script>
   <script>
     render();
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    // Offline support on the hosted site only; local development always loads fresh files.
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
       navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
     }
   </script>

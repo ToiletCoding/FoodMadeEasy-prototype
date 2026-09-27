@@ -1,10 +1,10 @@
 // Offline support for the installed prototype. Serves from cache first so it opens
 // instantly (and in a store basement), then refreshes the cache in the background:
 // a new version shows up on the next launch. Bump VERSION when files are added.
-const VERSION = 'fme-proto-880a0f2';
+const VERSION = 'fme-proto-7dd3d21';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/util.js', 'js/data.js', 'js/offers.js', 'js/mix.js', 'js/engine.js', 'js/state.js', 'js/ui.js',
+  'js/util.js', 'js/data.js', 'js/offers.js', 'js/mix.js', 'js/i18n.js', 'js/i18n-da.js', 'js/engine.js', 'js/state.js', 'js/ui.js',
   'js/screens-start.js', 'js/screens-week.js', 'js/screens-mix.js', 'js/screens-shop.js', 'js/screens-prep.js', 'js/screens-profile.js', 'js/dev.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon.png',
 ];

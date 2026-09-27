@@ -27,6 +27,7 @@ function routeFromLaunch() {
 
 SCREENS.welcome = () => screen({
   cls: 'welcome',
+  top: `<header class="topbar"><div class="tb-left"></div><div class="tb-title"></div><div class="tb-right"><button class="link lang-toggle" data-act="toggleLang">${lang() === 'da' ? 'English' : 'Dansk'}</button></div></header>`,
   body: `<div class="hero-art">
       <div class="hero-card c1"><span>🍗</span><b>Plan</b><small>7 days · on macro</small></div>
       <div class="hero-card c2"><span>🛒</span><b>Shop</b><small>487 kr · 2 stores</small></div>
@@ -38,6 +39,7 @@ SCREENS.welcome = () => screen({
     </div>`,
   footer: `${btn('Get Started', 'startOnboarding')}${btn('I already have an account', 'toLogin', { kind: 'text' })}`,
 });
+ACT.toggleLang = () => { S.lang = lang() === 'da' ? 'en' : 'da'; render(); };
 ACT.startOnboarding = () => {
   S.onboarding.started = true;
   S.onboarding.step = 'goal';
@@ -93,6 +95,25 @@ function targetErrors(d) {
   return errs;
 }
 
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+function restValid(d) {
+  if (!d.restOn) return true;
+  const r = Number(d.restKcal);
+  return r >= 1200 && r <= 6000 && (d.trainingDays || []).length >= 1 && d.trainingDays.length <= 6;
+}
+function restDaysBody(d, root) {
+  const r = Number(d.restKcal);
+  const err = d.restKcal !== '' && String(d.restKcal).length >= 4 && (r < 1200 || r > 6000) ? 'Enter between 1,200 and 6,000 kcal.' : '';
+  return `<div class="rest-box">
+    <label class="num-field ${err ? 'err' : ''}"><span class="nf-label">Rest-day calories</span>
+      <span class="nf-row"><input type="text" inputmode="numeric" data-bind="${root}.restKcal" value="${esc(d.restKcal)}" placeholder="${Math.max(1200, (Number(d.kcal) || 3200) - 500)}" maxlength="4"><span class="unit">kcal</span></span>
+      ${err ? `<span class="field-err">${err}</span>` : ''}</label>
+    <div class="section-label">Training days</div>
+    <div class="chips">${WEEK_ORDER.map((n) => chip(WEEKDAYS[n], (d.trainingDays || []).includes(n), 'toggleTrainDay', { root, v: n })).join('')}</div>
+    <p class="fine">Protein stays the same every day. On rest days breakfasts and snacks get smaller; containers stay the same.${Number(d.mealsPerDay) === 2 ? ' You need at least 3 meals a day for this (set it on the Planning step).' : ''}</p>
+  </div>`;
+}
+
 const STEP_DEFS = {
   goal: {
     title: 'What are you eating for?',
@@ -106,7 +127,7 @@ const STEP_DEFS = {
   targets: {
     title: 'Your daily targets',
     helper: 'Already have your numbers? Just enter them. We plan around exactly what you put here.',
-    valid: (d) => Object.keys(targetErrors(d)).length === 0,
+    valid: (d) => Object.keys(targetErrors(d)).length === 0 && restValid(d),
     hint: () => 'Fill in all four targets',
     body: (d, root) => {
       const errs = targetErrors(d);
@@ -128,7 +149,9 @@ const STEP_DEFS = {
       return `${field('kcal', 'Calories', 'kcal', true)}
         <div class="macro-grid">${field('protein', 'Protein', 'g')}${field('carbs', 'Carbs', 'g')}${field('fat', 'Fat', 'g')}</div>
         ${check}
-        <button class="link" data-act="suggestSplit" data-root="${root}">Not sure? Suggest a split from my calories.</button>`;
+        <button class="link" data-act="suggestSplit" data-root="${root}">Not sure? Suggest a split from my calories.</button>
+        <button class="toggle-row card-row" data-act="toggleRest" data-root="${root}" aria-pressed="${!!d.restOn}"><span class="grow"><b>Eat less on rest days</b><small>A lower calorie target for days you don't train.</small></span><span class="switch-vis ${d.restOn ? 'on' : ''}"></span></button>
+        ${d.restOn ? restDaysBody(d, root) : ''}`;
     },
   },
   food: {
@@ -188,6 +211,8 @@ const STEP_DEFS = {
         <p class="fine">For food only. We'll try to come in under it.</p>
         <div class="section-label">Variety</div>
         <div class="stack tight">${vars.map(([id, l, desc]) => `<button class="option-card slim ${d.variety === id ? 'on' : ''}" data-act="setField" data-root="${root}" data-k="variety" data-v="${id}"><span><b>${l}</b><small>${desc}</small></span><span class="radio"></span></button>`).join('')}</div>
+        <div class="section-label">Meal prep</div>
+        <div class="stack tight">${[['one', 'One session', 'Cook once. Thu–Sun meals go in the freezer.'], ['two', 'Two sessions, fridge only', 'Cook Sunday and Wednesday. Nothing gets frozen.']].map(([id, l, desc]) => `<button class="option-card slim ${(d.prepMode || 'one') === id ? 'on' : ''}" data-act="setField" data-root="${root}" data-k="prepMode" data-v="${id}"><span><b>${l}</b><small>${desc}</small></span><span class="radio"></span></button>`).join('')}</div>
         <div class="section-label">Cooking effort</div>
         <div class="seg three">${efforts.map(([id, l]) => `<button class="${d.effort === id ? 'on' : ''}" data-act="setField" data-root="${root}" data-k="effort" data-v="${id}">${l}</button>`).join('')}</div>
         <p class="fine">${efforts.find((e) => e[0] === d.effort)[2]}</p>`;
@@ -218,6 +243,19 @@ ACT.toggleList = (dt) => {
   const list = d[dt.k];
   const i = list.indexOf(dt.v);
   if (i >= 0) list.splice(i, 1); else list.push(dt.v);
+  render();
+};
+ACT.toggleRest = (dt) => {
+  const d = draftFor(dt.root);
+  d.restOn = !d.restOn;
+  if (d.restOn && !d.restKcal && Number(d.kcal) >= 1700) d.restKcal = String(Number(d.kcal) - 500);
+  if (!d.trainingDays) d.trainingDays = [1, 2, 4, 5];
+  render();
+};
+ACT.toggleTrainDay = (dt) => {
+  const d = draftFor(dt.root);
+  const n = Number(dt.v);
+  d.trainingDays = (d.trainingDays || []).includes(n) ? d.trainingDays.filter((x) => x !== n) : [...(d.trainingDays || []), n];
   render();
 };
 ACT.toggleCarb = (dt) => {
@@ -261,13 +299,14 @@ SHEETS.avoid = ({ root }) => {
   const d = draftFor(root);
   const q = (U.form.avoidQuery || '').trim();
   const pool = [...new Set([...COMMON_AVOID, ...Object.values(ING).filter((i) => !i.pantry).map((i) => i.name.replace(/ \(.*\)|,.*| \d.*$/g, ''))])];
-  const matches = q ? pool.filter((x) => x.toLowerCase().includes(q.toLowerCase()) && !d.avoid.includes(x)).slice(0, 8) : [];
+  const shown = (x) => (lang() === 'da' && I18N.names[x]) || x;
+  const matches = q ? pool.filter((x) => shown(x).toLowerCase().includes(q.toLowerCase()) && !d.avoid.includes(x)).slice(0, 8) : [];
   return `<div class="sheet-head"><h2>Foods you won't eat</h2></div>
     <div class="sheet-body">
       <input class="text-input search" type="search" data-bind="form.avoidQuery" value="${esc(q)}" placeholder="Search foods" data-enter="addAvoidQuery" data-root="${root}" data-autofocus>
       ${d.avoid.length ? `<div class="chips">${d.avoid.map((a) => chip(`${esc(a)} ×`, true, 'removeAvoid', { root, v: a })).join('')}</div>` : ''}
       ${q ? `<div class="list">${matches.map((m) => `<button class="list-row" data-act="addAvoid" data-root="${root}" data-v="${esc(m)}">${esc(m)}</button>`).join('')}
-          ${!matches.some((m) => m.toLowerCase() === q.toLowerCase()) ? `<button class="list-row accent" data-act="addAvoid" data-root="${root}" data-v="${esc(q)}">${matches.length ? '' : 'No match. '}Add ‘${esc(q)}’ anyway</button>` : ''}</div>`
+          ${!matches.some((m) => shown(m).toLowerCase() === q.toLowerCase()) ? `<button class="list-row accent" data-act="addAvoid" data-root="${root}" data-v="${esc(q)}">${matches.length ? '' : '<span>No match.</span>&nbsp;'}<span>Add</span>&nbsp;‘<span>\u2063${esc(q)}</span>’&nbsp;<span>anyway</span></button>` : ''}</div>`
         : `<div class="section-label">Common picks</div><div class="chips">${COMMON_AVOID.filter((c) => !d.avoid.includes(c)).map((c) => chip(c, false, 'addAvoid', { root, v: c })).join('')}</div>`}
     </div>
     <div class="sheet-foot">${btn('Done', 'closeSheet')}</div>`;
@@ -285,9 +324,9 @@ function summaryRows(d) {
   const nCarb = (d.carbTypes || CARBS).length;
   return [
     ['goal', 'Goal', (GOALS.find((g) => g.id === d.goal) || {}).label || '—'],
-    ['targets', 'Targets', `${fmtNum(d.kcal)} kcal · ${d.protein}P · ${d.carbs}C · ${d.fat}F`],
+    ['targets', 'Targets', `${fmtNum(d.kcal)} kcal · ${d.protein}P · ${d.carbs}C · ${d.fat}F${d.restOn && Number(d.restKcal) ? ` · rest days ${fmtNum(d.restKcal)} kcal` : ''}`],
     ['food', 'Food', `${diet} · ${allergies.length ? `No ${allergies.join(', ').toLowerCase()}` : 'No allergies'} · ${nProt} protein${nProt === 1 ? '' : 's'} · ${nCarb} carb${nCarb === 1 ? '' : 's'}${d.avoid.length ? ` · Skipping: ${d.avoid.join(', ').toLowerCase()}` : ''}`],
-    ['planning', 'Planning', `${d.mealsPerDay} meals/day · ${fmtNum(d.budget)} kr/week · ${{ low: 'Low', balanced: 'Balanced', high: 'High' }[d.variety]} variety · ${{ minimal: 'Minimal', normal: 'Normal', enjoy: 'Enjoys cooking' }[d.effort]} effort`],
+    ['planning', 'Planning', `${d.mealsPerDay} meals/day · ${fmtNum(d.budget)} kr/week · ${{ low: 'Low', balanced: 'Balanced', high: 'High' }[d.variety]} variety · ${{ minimal: 'Minimal', normal: 'Normal', enjoy: 'Enjoys cooking' }[d.effort]} effort · ${d.prepMode === 'two' ? '2 prep sessions' : '1 prep session'}`],
     ['stores', 'Stores', `${d.stores.map((s) => STORES.find((x) => x.id === s).name).join(', ')}${d.stores.length > 1 ? ` · ${d.storeCap === 1 ? '1 store' : `up to ${d.storeCap}`} per week` : ''}`],
   ];
 }
@@ -478,7 +517,7 @@ SCREENS.newPassword = ({ email }) => {
   const f = U.form || (U.form = {});
   return screen({
     top: topbar({}),
-    body: `<div class="pad"><h1 class="q">Set a new password</h1><p class="helper">For ${esc(email)}</p>
+    body: `<div class="pad"><h1 class="q">Set a new password</h1><p class="helper"><span>For</span> <b>${esc(email)}</b></p>
       <label class="field"><span>New password</span><span class="pw-row"><input type="${f.show ? 'text' : 'password'}" data-bind="form.newPw" value="${esc(f.newPw || '')}" placeholder="At least 8 characters" data-autofocus>
       <button class="link" data-act="togglePw">${f.show ? 'Hide' : 'Show'}</button></span></label></div>`,
     footer: btn('Save Password', 'savePassword', { disabled: (f.newPw || '').length < 8, busy: U.busy }),

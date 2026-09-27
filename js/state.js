@@ -1,12 +1,16 @@
 // App state, persistence and derived "where is the user in the week" logic.
 
 const STORE_KEY = 'fme-prototype-v1';
+const APP_VERSION = 'Prototype 2026-09-27';
+// Where testers' "Email feedback" goes. Empty = share/copy only (the app is public, so no address is baked in by default).
+const FEEDBACK_EMAIL = '';
 
 function defaultDraft() {
   return {
     goal: null, kcal: '', protein: '', carbs: '', fat: '',
     diet: 'none', dietOther: '', allergies: [], customAllergies: [], proteins: PROTEINS.map((p) => p.id), carbTypes: CARBS.map((c) => c.id), avoid: [], excludedRecipes: [],
-    mealsPerDay: 4, budget: '', variety: 'balanced', effort: 'normal',
+    mealsPerDay: 4, budget: '', variety: 'balanced', effort: 'normal', prepMode: 'one',
+    restOn: false, restKcal: '', trainingDays: [1, 2, 4, 5], ratings: {},
     stores: [], storeCap: 2, startDate: null,
   };
 }
@@ -98,8 +102,9 @@ function homeState() {
   const t = today();
   const daysLeft = diffDays(t, planEnd(p));
   if (daysLeft <= 2 && t >= p.start) return 'H8';
-  if (p.prep.done) return 'H7';
+  if (allPrepped(p)) return 'H7';
   if (p.prep.step > 0) return 'H6';
+  if (twoSessions(p) && p.prep.session === 1) return t >= midweekDate(p) ? 'H5' : 'H7';
   const sl = Engine.shoppingList(p, t);
   if (sl.count && sl.done >= sl.count) return 'H5';
   if (sl.done > 0) return 'H4';
@@ -113,9 +118,24 @@ function todaysPlan() {
   return [a.plan, a.prevPlan].find((p) => inPlan(p, t)) || null;
 }
 
+// Meal prep sessions: "one" = single session + freezer; "two" = Sun (Mon–Wed) + Wed (Thu–Sun), fridge only.
+function twoSessions(p) { return p.profile.prepMode === 'two'; }
+function curSession(p) { return twoSessions(p) ? (p.prep.session || 0) : null; }
+function allPrepped(p) { return !!p.prep.done && (!twoSessions(p) || p.prep.session === 1); }
+function anyPrepped(p) { return !!p.prep.done || (twoSessions(p) && p.prep.session === 1); }
+function midweekDate(p) { return addDays(p.start, 2); }
+function mealPrepped(p, d) {
+  if (!twoSessions(p)) return !!p.prep.done;
+  return d <= 2 ? anyPrepped(p) : allPrepped(p);
+}
+
 function finalizeProfile(d) {
+  const rest = d.restOn && Number(d.restKcal) >= 1200;
   return {
     ...d,
+    restKcal: rest ? Number(d.restKcal) : null,
+    trainingDays: d.trainingDays || [1, 2, 4, 5],
+    ratings: d.ratings || {},
     kcal: Number(d.kcal), protein: Number(d.protein), carbs: Number(d.carbs), fat: Number(d.fat),
     budget: Number(d.budget), mealsPerDay: Number(d.mealsPerDay),
     startDate: d.startDate || nextMonday(today()),

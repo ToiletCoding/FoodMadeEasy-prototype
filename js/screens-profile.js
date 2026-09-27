@@ -17,6 +17,9 @@ SCREENS.profile = () => {
       ${card('food', 'Food', [rows[2][2]])}
       ${card('planning', 'Planning', [rows[3][2]])}
       ${card('stores', 'Stores', [rows[4][2]])}
+      ${(() => { const r = Object.values(pr.ratings || {}); const up = r.filter((v) => v === 1).length, down = r.filter((v) => v === -1).length;
+        return `<button class="card profile-card" data-act="openRatings"><span class="grow"><small>Your meals</small><span>${up || down ? `${up} liked · ${down} disliked` : 'Rate meals with 👍 or 👎 to steer your plans'}</span></span>${icon('chev-right')}</button>`; })()}
+      <button class="card profile-card" data-act="openFeedback"><span class="grow"><small>Feedback</small><span>Tell us what's confusing, broken or missing</span></span>${icon('chev-right')}</button>
       <p class="fine center">Changes apply to your next plan. We'll ask before changing this week.</p></div>`,
   });
 };
@@ -29,7 +32,7 @@ const SECTION_TITLES = { targets: 'Targets', food: 'Food', planning: 'Planning',
 ACT.editSection = (d) => {
   if (!online()) { toast("You're offline. Connect to edit your profile."); return; }
   const pr = acct().profile;
-  U.edit = { ...clone(pr), kcal: String(pr.kcal), protein: String(pr.protein), carbs: String(pr.carbs), fat: String(pr.fat), budget: String(pr.budget) };
+  U.edit = { ...clone(pr), kcal: String(pr.kcal), protein: String(pr.protein), carbs: String(pr.carbs), fat: String(pr.fat), budget: String(pr.budget), restOn: !!pr.restKcal, restKcal: pr.restKcal ? String(pr.restKcal) : '', trainingDays: pr.trainingDays || [1, 2, 4, 5] };
   U.editOrig = JSON.stringify(U.edit);
   U.sheet = null;
   if (U.route.name === 'profile') push('edit', { section: d.s }); else { go('profile'); push('edit', { section: d.s }); }
@@ -68,7 +71,7 @@ ACT.saveSection = () => {
     const before = a.profile;
     const after = finalizeProfile({ ...U.edit, startDate: before.startDate });
     a.profile = after;
-    const affects = ['kcal', 'protein', 'carbs', 'fat', 'diet', 'allergies', 'customAllergies', 'proteins', 'avoid', 'mealsPerDay', 'budget', 'variety', 'effort', 'stores']
+    const affects = ['kcal', 'restKcal', 'trainingDays', 'prepMode', 'protein', 'carbs', 'fat', 'diet', 'allergies', 'customAllergies', 'proteins', 'avoid', 'mealsPerDay', 'budget', 'variety', 'effort', 'stores']
       .some((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
     back();
     if (a.plan && affects) {
@@ -130,9 +133,9 @@ SCREENS.settings = () => {
         ${S.user.method === 'email' ? row('Change password', '', 'settingsPassword') : ''}</div>
       ${S.user.method === 'email' ? '<p class="fine">Confirm your email so you can recover your account.</p>' : ''}
       <div class="section-label">Preferences</div>
-      <div class="card list-card">${row('Notifications', S.settings.permission === 'granted' ? 'On' : S.settings.permission === 'denied' ? 'Off' : '', 'openNotifs')}${row('Units', 'Metric (g, kg)')}${row('Currency', 'DKK')}</div>
+      <div class="card list-card">${row('Language', lang() === 'da' ? 'Dansk' : 'English', 'toggleLang')}${row('Notifications', S.settings.permission === 'granted' ? 'On' : S.settings.permission === 'denied' ? 'Off' : '', 'openNotifs')}${row('Units', 'Metric (g, kg)')}${row('Currency', 'DKK')}</div>
       <div class="section-label">About</div>
-      <div class="card list-card">${row('How prices are estimated', '', 'openPricesInfo')}${row('Privacy Policy', '', 'noop')}${row('Terms', '', 'noop')}${row('Version', 'Prototype 0.1')}</div>
+      <div class="card list-card">${row('Send feedback', '', 'openFeedback')}${row('How prices are estimated', '', 'openPricesInfo')}${row('Privacy Policy', '', 'noop')}${row('Terms', '', 'noop')}${row('Version', 'Prototype 0.1')}</div>
       <div class="card list-card">${row('Log out', '', 'logout', { danger: true })}${row('Delete account', '', 'openDelete', { danger: true })}</div>
       <div class="section-label">Prototype tools</div>
       <div class="card list-card dev-inline">${devControls()}</div></div>`,
@@ -291,4 +294,84 @@ SCREENS.nomatch = ({ r }) => {
       ${r.limiter ? `<p class="helper"><b>${esc(r.limiter.label)}</b> adds ${r.limiter.added} meal${r.limiter.added > 1 ? 's' : ''}.</p>` : ''}</div>`,
     footer: `${btn('Allow More Foods', 'errorEdit', { data: { s: 'food' } })}<div class="stack-text">${r.variety !== 'low' && r.found > 0 ? btn('Lower variety', 'fixVariety', { kind: 'text' }) : ''}</div>`,
   });
+};
+
+// ---------- Your meals (ratings) ----------
+
+ACT.openRatings = () => push('ratings');
+SCREENS.ratings = () => {
+  const r = acct().profile.ratings || {};
+  const list = (v) => Object.keys(r).filter((id) => r[id] === v && RECIPE[id]);
+  const section = (title, ids, v) => `<div class="section-label">${title}</div>${ids.length ? `<div class="card list-card">${ids.map((id) => `<div class="rate-item">${thumb(id, 40)}<span class="grow">${esc(RECIPE[id].name)}</span>
+    <button class="icon-btn" data-act="rate" data-rid="${id}" data-v="${v}" aria-label="Remove rating">${icon('x')}</button></div>`).join('')}</div>` : `<p class="fine">${v === 1 ? 'Nothing yet. Tap 👍 on a recipe you enjoyed.' : 'Nothing yet. Tap 👎 on a recipe to stop seeing it.'}</p>`}`;
+  return screen({
+    top: topbar({ left: backBtn(), title: 'Your meals' }),
+    body: `<div class="pad"><p class="helper">Liked meals come back more often. Disliked meals are never planned.</p>
+      ${section('Liked 👍', list(1), 1)}${section('Disliked 👎', list(-1), -1)}</div>`,
+  });
+};
+
+// ---------- Feedback (testers) ----------
+
+const FB_KINDS = [['bug', 'Something\'s broken'], ['confusing', 'Confusing'], ['idea', 'Idea'], ['numbers', 'Price or portion looks wrong']];
+
+function feedbackContext() {
+  const a = acct();
+  const where = U.stack.length ? `${U.stack.map((r) => r.name).join(' > ')} > ${U.route.name}` : U.route.name;
+  const lines = [`Screen: ${where}`, `App: ${APP_VERSION} · ${lang()} · simulated date ${today()}`, `Device: ${navigator.userAgent.replace(/\s*\([^)]*\)\s*/g, ' ').slice(0, 80)} · ${innerWidth}×${innerHeight}`];
+  if (a && a.profile) {
+    const pr = a.profile;
+    lines.push(`Profile: ${pr.kcal} kcal${pr.restKcal ? ` (rest ${pr.restKcal})` : ''} · ${pr.protein}P ${pr.carbs}C ${pr.fat}F · ${pr.mealsPerDay} meals/day · ${pr.budget} kr · ${pr.variety} · ${pr.prepMode || 'one'} prep · stores ${pr.stores.join('+')} (max ${pr.storeCap}) · diet ${pr.diet}`);
+    lines.push(`Home state: ${homeState()}`);
+  }
+  const p = a && (a.plan || a.draft);
+  if (p) {
+    const sl = Engine.shoppingList(p, today());
+    lines.push(`Plan ${p.start}: ${[...new Set(p.meals.flat())].map((r) => RECIPE[r].name).join(', ')} · est. ${Math.round(sl.total)} kr at ${p.subset.join('+')}`);
+  }
+  return lines.join('\n');
+}
+
+ACT.openFeedback = () => {
+  U.fb = { kind: null, ctx: true, screen: U.route.name };
+  U.form = { ...(U.form || {}), fbText: '' };
+  openSheet('feedback', { tall: true });
+};
+SHEETS.feedback = () => {
+  const f = U.fb;
+  const hasText = (U.form.fbText || '').trim().length > 0;
+  return `<div class="sheet-head"><h2>Send feedback</h2><p class="muted">What happened, and what did you expect?</p></div>
+    <div class="sheet-body">
+      <div class="chips">${FB_KINDS.map(([id, l]) => chip(l, f.kind === id, 'fbKind', { v: id })).join('')}</div>
+      <textarea class="text-input fb-text" data-bind="form.fbText" data-live="false" rows="5" placeholder="E.g. I couldn't find where to change my budget" data-autofocus>${esc(U.form.fbText || '')}</textarea>
+      <label class="check-row"><input type="checkbox" data-act="fbCtx" ${f.ctx ? 'checked' : ''}> Include what I'm looking at and my plan settings</label>
+      ${f.ctx ? `<details class="fb-ctx"><summary>What gets included</summary><pre>\u2063${esc(feedbackContext())}</pre></details>` : ''}
+    </div>
+    <div class="sheet-foot">${btn('Share Feedback', 'fbSend')}
+      ${FEEDBACK_EMAIL ? `<a class="btn text" href="mailto:${esc(FEEDBACK_EMAIL)}?subject=${encodeURIComponent('FoodMadeEasy feedback')}&body=${encodeURIComponent(feedbackText())}" target="_blank" rel="noopener">Email instead</a>` : ''}</div>`;
+};
+function feedbackText() {
+  const f = U.fb || {};
+  const kind = (FB_KINDS.find((k) => k[0] === f.kind) || [null, 'Feedback'])[1];
+  return `FoodMadeEasy feedback · ${kind}\n\n${(U.form.fbText || '').trim() || '(no text)'}${f.ctx ? `\n\n---\n${feedbackContext()}` : ''}`;
+}
+ACT.fbKind = (d) => { U.fb.kind = U.fb.kind === d.v ? null : d.v; render(); };
+ACT.fbCtx = () => { U.fb.ctx = !U.fb.ctx; render(); };
+ACT.fbSend = async () => {
+  const text = feedbackText();
+  try {
+    if (!navigator.share) throw new Error('no share');
+    await navigator.share({ title: 'FoodMadeEasy feedback', text });
+    closeSheet();
+    toast('Thanks for the feedback!', { kind: 'good' });
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    try {
+      await navigator.clipboard.writeText(text);
+      closeSheet();
+      toast('Feedback copied. Paste it in a message to the FoodMadeEasy team.', { ms: 6000 });
+    } catch (e2) {
+      toast("Couldn't share or copy here. Take a screenshot instead.", { kind: 'warn' });
+    }
+  }
 };

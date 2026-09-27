@@ -59,6 +59,8 @@ SCREENS.shop = () => {
       <div class="card total-card"><div class="muted small">Estimated total</div><div class="big-num">${fmtKr(sl.total)}</div>
         <div class="small">${sl.stores.length} store${sl.stores.length > 1 ? 's' : ''} · <span class="${b.cls}">${b.text}</span>${sl.savings ? ` · ${fmtKr(sl.savings)} saved with offers` : ''}</div>
         ${progress(sl.count ? sl.done / sl.count : 0)}<div class="muted small">${sl.done} of ${sl.count} items</div></div>
+      ${storeOptions(p, sl)}
+      ${twoSessions(p) ? '<p class="fine">This list covers both prep sessions. Check the use-by dates on fresh meat for Wednesday.</p>' : ''}
       ${allDone ? `<button class="done-banner" data-act="openPrep">${icon('check')} Shopping done · <b>Start Meal Prep</b></button>` : ''}
       ${!online() ? notice('Offline · your checks will sync later.', { icon: 'wifi' }) : ''}
       ${p.noData ? notice('Prices are rough estimates this week.', { kind: 'warn' }) : ''}
@@ -84,6 +86,34 @@ SCREENS.shop.after = (root) => {
       if (dx < -80) ACT.toggleHave({ id });
     });
   });
+};
+
+// "Cheapest vs. fewest stores": show what other store combinations would cost.
+function storeOptions(p, sl) {
+  const choices = Engine.storeChoices(p, today());
+  const key = (sub) => sub.slice().sort().join();
+  const cur = key(sl.stores.map((s) => s.id));
+  const name = (sub) => sub.map((id) => STORES.find((s) => s.id === id).name).join(' + ');
+  const rows = [];
+  const best = choices[0];
+  if (best && key(best.subset) !== cur && best.total < sl.total - 4) rows.push({ sub: best.subset, total: best.total, label: `Cheapest: ${name(best.subset)}`, trips: best.subset.length });
+  if (sl.stores.length > 1) {
+    const single = choices.find((c) => c.subset.length === 1);
+    if (single && !rows.some((r) => key(r.sub) === key(single.subset))) rows.push({ sub: single.subset, total: single.total, label: `Only ${name(single.subset)}`, trips: 1 });
+  }
+  if (!rows.length) return '';
+  return `<div class="card store-opts"><div class="so-head">Store options</div>${rows.map((r) => {
+    const diff = Math.round(r.total - sl.total);
+    return `<div class="so-row"><span class="grow"><b>${esc(r.label)}</b><small>${fmtKr(r.total)} · <span class="${diff > 0 ? 'warn' : 'good'}">${signed(diff)} kr</span> · ${r.trips} trip${r.trips > 1 ? 's' : ''}</small></span>
+      <button class="btn secondary small" data-act="useStores" data-v="${r.sub.join(',')}">Switch</button></div>`;
+  }).join('')}${sl.done ? '<p class="fine">Items you\'ve ticked stay ticked.</p>' : ''}</div>`;
+}
+ACT.useStores = (d) => {
+  const p = acct().plan;
+  const prev = p.subset;
+  p.subset = d.v.split(',');
+  render();
+  toast(`Shopping at ${p.subset.map((id) => STORES.find((s) => s.id === id).name).join(' + ')}`, { undo: () => { p.subset = prev; render(); } });
 };
 
 ACT.toggleStore = (d) => {
@@ -168,7 +198,7 @@ SHEETS.item = ({ id }) => {
     <div class="sheet-body">
       <div class="kv"><span>Price</span><b>${fmtKr(i.price)}${i.offer ? ` <small class="good">offer, normally ${fmtKr(i.regular)}</small>` : ''}${i.offerEnded ? ' <small class="warn">offer ended</small>' : ''}</b></div>
       ${i.offerEnds ? `<div class="kv"><span>${i.offerEnded ? 'Offer ended' : 'Valid until'}</span><b>${fmtDay(i.offerEnds)}</b></div>` : ''}
-      ${i.product ? `<div class="kv"><span>In the avis as</span><b>${esc(i.product)}</b></div>` : ''}
+      ${i.product ? `<div class="kv"><span>In the avis as</span><b>\u2063${esc(i.product)}</b></div>` : ''}
       ${i.real ? `<p class="fine">Real offer from ${esc(store.name)}'s tilbudsavis (${esc(i.real.replace('-W', ' week '))}). Regular price is estimated.</p>` : ''}
       <div class="why">You need <b>${needTxt}</b> · buying <b>${qtyText(i)}</b>${extra > 20 ? ` (${extraTxt})` : ''}</div>
       <div class="section-label">Used in</div>
@@ -193,7 +223,7 @@ ACT.toggleHave = (d) => {
 SHEETS.shopDone = () => {
   const p = acct().plan;
   const sl = Engine.shoppingList(p, today());
-  const prep = Engine.prepPlan(p);
+  const prep = Engine.prepPlan(p, curSession(p));
   return `<div class="sheet-body center-col"><div class="burst">✓</div><h2>Shopping done</h2>
     <p>${sl.count} items · est. ${fmtKr(sl.total)}</p>
     ${prep.containers ? `<p class="muted">Next up: meal prep, about ${fmtDuration(prep.minutes).replace('~', '')} for ${prep.containers} meals.</p>` : ''}</div>

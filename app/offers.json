@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-05T00:29:45.157Z",
+  "generatedAt": "2026-10-22T11:07:13.790Z",
   "weeks": [
     {
       "store": "365discount",
@@ -8,6 +8,13 @@
       "validFrom": "2026-10-01",
       "validTo": "2026-10-07",
       "offers": 11
+    },
+    {
+      "store": "365discount",
+      "week": "2026-W44",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28",
+      "offers": 10
     },
     {
       "store": "Bilka",
@@ -52,6 +59,13 @@
       "offers": 15
     },
     {
+      "store": "Lidl",
+      "week": "2026-W44",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31",
+      "offers": 15
+    },
+    {
       "store": "Netto",
       "week": "2026-W40",
       "validFrom": "2026-09-26",
@@ -66,6 +80,13 @@
       "offers": 17
     },
     {
+      "store": "Netto",
+      "week": "2026-W44",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30",
+      "offers": 11
+    },
+    {
       "store": "REMA 1000",
       "week": "2026-W40",
       "validFrom": "2026-09-26",
@@ -78,6 +99,13 @@
       "validFrom": "2026-10-04",
       "validTo": "2026-10-10",
       "offers": 11
+    },
+    {
+      "store": "REMA 1000",
+      "week": "2026-W44",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31",
+      "offers": 8
     }
   ],
   "offers": [
@@ -212,6 +240,126 @@
       "source": "docs/offers/365discount-2026-uge41.md",
       "validFrom": "2026-10-01",
       "validTo": "2026-10-07"
+    },
+    {
+      "id": "chicken:365discount:800:2026-W44",
+      "foodId": "chicken",
+      "store": "365discount",
+      "packageGrams": 800,
+      "packageLabel": "800 g",
+      "priceOre": 4900,
+      "regularPriceOre": 5530,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "cheese:365discount:200:2026-W44",
+      "foodId": "cheese",
+      "store": "365discount",
+      "packageGrams": 200,
+      "packageLabel": "200 g",
+      "priceOre": 2200,
+      "regularPriceOre": 2743,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "tomatoes:365discount:400:2026-W44",
+      "foodId": "tomatoes",
+      "store": "365discount",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 600,
+      "regularPriceOre": 672,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "wokveg:365discount:400:2026-W44",
+      "foodId": "wokveg",
+      "store": "365discount",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 1300,
+      "regularPriceOre": 1300,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "rice:365discount:1000:2026-W44",
+      "foodId": "rice",
+      "store": "365discount",
+      "packageGrams": 1000,
+      "packageLabel": "1 kg",
+      "priceOre": 1200,
+      "regularPriceOre": 1440,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "oats:365discount:700:2026-W44",
+      "foodId": "oats",
+      "store": "365discount",
+      "packageGrams": 700,
+      "packageLabel": "700 g",
+      "priceOre": 1000,
+      "regularPriceOre": 1000,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "onion:365discount:1000:2026-W44",
+      "foodId": "onion",
+      "store": "365discount",
+      "packageGrams": 1000,
+      "packageLabel": "1 kg",
+      "priceOre": 800,
+      "regularPriceOre": 1152,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "potatoes:365discount:1500:2026-W44",
+      "foodId": "potatoes",
+      "store": "365discount",
+      "packageGrams": 1500,
+      "packageLabel": "1.5 kg",
+      "priceOre": 1200,
+      "regularPriceOre": 1584,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "carrots:365discount:250:2026-W44",
+      "foodId": "carrots",
+      "store": "365discount",
+      "packageGrams": 250,
+      "packageLabel": "250 g",
+      "priceOre": 900,
+      "regularPriceOre": 900,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
+    },
+    {
+      "id": "avocado:365discount:450:2026-W44",
+      "foodId": "avocado",
+      "store": "365discount",
+      "packageGrams": 450,
+      "packageLabel": "3 pcs",
+      "priceOre": 2000,
+      "regularPriceOre": 2352,
+      "source": "docs/offers/365discount-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-28"
     },
     {
       "id": "chicken:bilka:2600:2026-W40",
@@ -802,6 +950,186 @@
       "validTo": "2026-10-10"
     },
     {
+      "id": "beef:lidl:400:2026-W44",
+      "foodId": "beef",
+      "store": "Lidl",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 2995,
+      "regularPriceOre": 3880,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "smokedsalmon:lidl:220:2026-W44",
+      "foodId": "smokedsalmon",
+      "store": "Lidl",
+      "packageGrams": 220,
+      "packageLabel": "220 g",
+      "priceOre": 5900,
+      "regularPriceOre": 5975,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "cheese:lidl:300:2026-W44",
+      "foodId": "cheese",
+      "store": "Lidl",
+      "packageGrams": 300,
+      "packageLabel": "300 g",
+      "priceOre": 2295,
+      "regularPriceOre": 3557,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "feta:lidl:240:2026-W44",
+      "foodId": "feta",
+      "store": "Lidl",
+      "packageGrams": 240,
+      "packageLabel": "240 g",
+      "priceOre": 2200,
+      "regularPriceOre": 2200,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "honey:lidl:750:2026-W44",
+      "foodId": "honey",
+      "store": "Lidl",
+      "packageGrams": 750,
+      "packageLabel": "750 g",
+      "priceOre": 4900,
+      "regularPriceOre": 4900,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "greenbeans:lidl:1000:2026-W44",
+      "foodId": "greenbeans",
+      "store": "Lidl",
+      "packageGrams": 1000,
+      "packageLabel": "1 kg",
+      "priceOre": 1495,
+      "regularPriceOre": 1940,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "peas:lidl:750:2026-W44",
+      "foodId": "peas",
+      "store": "Lidl",
+      "packageGrams": 750,
+      "packageLabel": "750 g",
+      "priceOre": 1295,
+      "regularPriceOre": 2102,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "spinach:lidl:750:2026-W44",
+      "foodId": "spinach",
+      "store": "Lidl",
+      "packageGrams": 750,
+      "packageLabel": "750 g",
+      "priceOre": 995,
+      "regularPriceOre": 1617,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "spinach:lidl:450:2026-W44",
+      "foodId": "spinach",
+      "store": "Lidl",
+      "packageGrams": 450,
+      "packageLabel": "450 g",
+      "priceOre": 895,
+      "regularPriceOre": 970,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "spinach:lidl:500:2026-W44",
+      "foodId": "spinach",
+      "store": "Lidl",
+      "packageGrams": 500,
+      "packageLabel": "500 g",
+      "priceOre": 1800,
+      "regularPriceOre": 1800,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "onion:lidl:2000:2026-W44",
+      "foodId": "onion",
+      "store": "Lidl",
+      "packageGrams": 2000,
+      "packageLabel": "2 kg",
+      "priceOre": 1200,
+      "regularPriceOre": 2328,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "potatoes:lidl:1000:2026-W44",
+      "foodId": "potatoes",
+      "store": "Lidl",
+      "packageGrams": 1000,
+      "packageLabel": "1 kg",
+      "priceOre": 1000,
+      "regularPriceOre": 2238,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "apple:lidl:1000:2026-W44",
+      "foodId": "apple",
+      "store": "Lidl",
+      "packageGrams": 1000,
+      "packageLabel": "1 kg",
+      "priceOre": 1200,
+      "regularPriceOre": 1940,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "pepper:lidl:500:2026-W44",
+      "foodId": "pepper",
+      "store": "Lidl",
+      "packageGrams": 500,
+      "packageLabel": "500 g",
+      "priceOre": 1500,
+      "regularPriceOre": 2134,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "cucumber:lidl:350:2026-W44",
+      "foodId": "cucumber",
+      "store": "Lidl",
+      "packageGrams": 350,
+      "packageLabel": "1 pcs",
+      "priceOre": 700,
+      "regularPriceOre": 776,
+      "source": "docs/offers/lidl-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
       "id": "chicken:netto:400:2026-W40",
       "foodId": "chicken",
       "store": "Netto",
@@ -1174,6 +1502,138 @@
       "validTo": "2026-10-09"
     },
     {
+      "id": "chicken:netto:400:2026-W44",
+      "foodId": "chicken",
+      "store": "Netto",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 2500,
+      "regularPriceOre": 2526,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "chickmince:netto:400:2026-W44",
+      "foodId": "chickmince",
+      "store": "Netto",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 2500,
+      "regularPriceOre": 3430,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "chickthigh:netto:400:2026-W44",
+      "foodId": "chickthigh",
+      "store": "Netto",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 2500,
+      "regularPriceOre": 3143,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "beeflean:netto:350:2026-W44",
+      "foodId": "beeflean",
+      "store": "Netto",
+      "packageGrams": 350,
+      "packageLabel": "350 g",
+      "priceOre": 3995,
+      "regularPriceOre": 3995,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "salmon:netto:600:2026-W44",
+      "foodId": "salmon",
+      "store": "Netto",
+      "packageGrams": 600,
+      "packageLabel": "600 g",
+      "priceOre": 7900,
+      "regularPriceOre": 10466,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "smokedsalmon:netto:250:2026-W44",
+      "foodId": "smokedsalmon",
+      "store": "Netto",
+      "packageGrams": 250,
+      "packageLabel": "250 g",
+      "priceOre": 6500,
+      "regularPriceOre": 6860,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "feta:netto:150:2026-W44",
+      "foodId": "feta",
+      "store": "Netto",
+      "packageGrams": 150,
+      "packageLabel": "150 g",
+      "priceOre": 2000,
+      "regularPriceOre": 2000,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "eggs:netto:600:2026-W44",
+      "foodId": "eggs",
+      "store": "Netto",
+      "packageGrams": 600,
+      "packageLabel": "10 pcs",
+      "priceOre": 3000,
+      "regularPriceOre": 3528,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "cottage:netto:450:2026-W44",
+      "foodId": "cottage",
+      "store": "Netto",
+      "packageGrams": 450,
+      "packageLabel": "450 g",
+      "priceOre": 1800,
+      "regularPriceOre": 1985,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "mushrooms:netto:100:2026-W44",
+      "foodId": "mushrooms",
+      "store": "Netto",
+      "packageGrams": 100,
+      "packageLabel": "100 g",
+      "priceOre": 500,
+      "regularPriceOre": 500,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
+      "id": "onion:netto:1000:2026-W44",
+      "foodId": "onion",
+      "store": "Netto",
+      "packageGrams": 1000,
+      "packageLabel": "1 kg",
+      "priceOre": 600,
+      "regularPriceOre": 1176,
+      "source": "docs/offers/netto-2026-uge44.md",
+      "validFrom": "2026-10-24",
+      "validTo": "2026-10-30"
+    },
+    {
       "id": "pasta:rema:500:2026-W40",
       "foodId": "pasta",
       "store": "REMA 1000",
@@ -1352,6 +1812,90 @@
       "source": "docs/offers/rema-2026-uge41.md",
       "validFrom": "2026-10-04",
       "validTo": "2026-10-10"
+    },
+    {
+      "id": "chicken:rema:250:2026-W44",
+      "foodId": "chicken",
+      "store": "REMA 1000",
+      "packageGrams": 250,
+      "packageLabel": "250 g",
+      "priceOre": 3495,
+      "regularPriceOre": 3495,
+      "source": "docs/offers/rema-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "pork:rema:600:2026-W44",
+      "foodId": "pork",
+      "store": "REMA 1000",
+      "packageGrams": 600,
+      "packageLabel": "600 g",
+      "priceOre": 4794,
+      "regularPriceOre": 7800,
+      "source": "docs/offers/rema-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "salmon:rema:600:2026-W44",
+      "foodId": "salmon",
+      "store": "REMA 1000",
+      "packageGrams": 600,
+      "packageLabel": "600 g",
+      "priceOre": 8900,
+      "regularPriceOre": 10680,
+      "source": "docs/offers/rema-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "rice:rema:500:2026-W44",
+      "foodId": "rice",
+      "store": "REMA 1000",
+      "packageGrams": 500,
+      "packageLabel": "500 g",
+      "priceOre": 795,
+      "regularPriceOre": 795,
+      "source": "docs/offers/rema-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "rye:rema:900:2026-W44",
+      "foodId": "rye",
+      "store": "REMA 1000",
+      "packageGrams": 900,
+      "packageLabel": "900 g",
+      "priceOre": 1800,
+      "regularPriceOre": 1980,
+      "source": "docs/offers/rema-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "apple:rema:1500:2026-W44",
+      "foodId": "apple",
+      "store": "REMA 1000",
+      "packageGrams": 1500,
+      "packageLabel": "1.5 kg",
+      "priceOre": 2500,
+      "regularPriceOre": 2700,
+      "source": "docs/offers/rema-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
+    },
+    {
+      "id": "potatoes:rema:650:2026-W44",
+      "foodId": "potatoes",
+      "store": "REMA 1000",
+      "packageGrams": 650,
+      "packageLabel": "650 g",
+      "priceOre": 1000,
+      "regularPriceOre": 1500,
+      "source": "docs/offers/rema-2026-uge44.md",
+      "validFrom": "2026-10-25",
+      "validTo": "2026-10-31"
     }
   ]
 }

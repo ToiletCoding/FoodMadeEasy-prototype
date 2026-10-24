@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-22T11:07:13.790Z",
+  "generatedAt": "2026-10-24T20:13:54.086Z",
   "weeks": [
     {
       "store": "365discount",
@@ -31,6 +31,13 @@
       "offers": 11
     },
     {
+      "store": "Bilka",
+      "week": "2026-W44",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29",
+      "offers": 6
+    },
+    {
       "store": "føtex",
       "week": "2026-W40",
       "validFrom": "2026-09-24",
@@ -43,6 +50,13 @@
       "validFrom": "2026-10-02",
       "validTo": "2026-10-08",
       "offers": 13
+    },
+    {
+      "store": "føtex",
+      "week": "2026-W44",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29",
+      "offers": 8
     },
     {
       "store": "Lidl",
@@ -518,6 +532,78 @@
       "validTo": "2026-10-08"
     },
     {
+      "id": "chickmince:bilka:1000:2026-W44",
+      "foodId": "chickmince",
+      "store": "Bilka",
+      "packageGrams": 1000,
+      "packageLabel": "1 kg",
+      "priceOre": 3900,
+      "regularPriceOre": 8925,
+      "source": "docs/offers/bilka-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "chicken:bilka:2600:2026-W44",
+      "foodId": "chicken",
+      "store": "Bilka",
+      "packageGrams": 2600,
+      "packageLabel": "2.6 kg",
+      "priceOre": 17900,
+      "regularPriceOre": 18564,
+      "source": "docs/offers/bilka-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "eggs:bilka:600:2026-W44",
+      "foodId": "eggs",
+      "store": "Bilka",
+      "packageGrams": 600,
+      "packageLabel": "10 pcs",
+      "priceOre": 2500,
+      "regularPriceOre": 3672,
+      "source": "docs/offers/bilka-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "ham:bilka:400:2026-W44",
+      "foodId": "ham",
+      "store": "Bilka",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 2500,
+      "regularPriceOre": 5440,
+      "source": "docs/offers/bilka-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "pasta:bilka:500:2026-W44",
+      "foodId": "pasta",
+      "store": "Bilka",
+      "packageGrams": 500,
+      "packageLabel": "500 g",
+      "priceOre": 1600,
+      "regularPriceOre": 1600,
+      "source": "docs/offers/bilka-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "tortilla:bilka:370:2026-W44",
+      "foodId": "tortilla",
+      "store": "Bilka",
+      "packageGrams": 370,
+      "packageLabel": "370 g",
+      "priceOre": 1000,
+      "regularPriceOre": 1530,
+      "source": "docs/offers/bilka-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
       "id": "eggs:fotex:480:2026-W40",
       "foodId": "eggs",
       "store": "føtex",
@@ -684,6 +770,102 @@
       "source": "docs/offers/foetex-2026-uge41.md",
       "validFrom": "2026-10-02",
       "validTo": "2026-10-08"
+    },
+    {
+      "id": "chicken:fotex:800:2026-W44",
+      "foodId": "chicken",
+      "store": "føtex",
+      "packageGrams": 800,
+      "packageLabel": "800 g",
+      "priceOre": 5900,
+      "regularPriceOre": 6221,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "eggs:fotex:480:2026-W44",
+      "foodId": "eggs",
+      "store": "føtex",
+      "packageGrams": 480,
+      "packageLabel": "8 pcs",
+      "priceOre": 2200,
+      "regularPriceOre": 3110,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "cottage:fotex:500:2026-W44",
+      "foodId": "cottage",
+      "store": "føtex",
+      "packageGrams": 500,
+      "packageLabel": "500 g",
+      "priceOre": 2200,
+      "regularPriceOre": 2430,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "tomatoes:fotex:400:2026-W44",
+      "foodId": "tomatoes",
+      "store": "føtex",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 1000,
+      "regularPriceOre": 1000,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "pasta:fotex:500:2026-W44",
+      "foodId": "pasta",
+      "store": "føtex",
+      "packageGrams": 500,
+      "packageLabel": "500 g",
+      "priceOre": 1600,
+      "regularPriceOre": 1600,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "potatoes:fotex:700:2026-W44",
+      "foodId": "potatoes",
+      "store": "føtex",
+      "packageGrams": 700,
+      "packageLabel": "700 g",
+      "priceOre": 1800,
+      "regularPriceOre": 1800,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "pepper:fotex:500:2026-W44",
+      "foodId": "pepper",
+      "store": "føtex",
+      "packageGrams": 500,
+      "packageLabel": "500 g",
+      "priceOre": 1800,
+      "regularPriceOre": 2376,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
+    },
+    {
+      "id": "whey:fotex:400:2026-W44",
+      "foodId": "whey",
+      "store": "føtex",
+      "packageGrams": 400,
+      "packageLabel": "400 g",
+      "priceOre": 15900,
+      "regularPriceOre": 15900,
+      "source": "docs/offers/foetex-2026-uge44.md",
+      "validFrom": "2026-10-22",
+      "validTo": "2026-10-29"
     },
     {
       "id": "cottage:lidl:500:2026-W40",
